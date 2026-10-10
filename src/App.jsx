@@ -1,12 +1,10 @@
 import React from 'react';
 import ParcelMap from './ParcelMap';
 
-function App() {
+export default function App() {
   return (
-    <div className="App">
+    <div>
       <ParcelMap />
     </div>
   );
 }
-
-export default App;
