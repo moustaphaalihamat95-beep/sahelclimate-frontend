@@ -97,55 +97,64 @@ export function downloadReport(parcelId, format = "pdf") {
   window.open(`${API_BASE_URL}/parcels/${parcelId}/export/${format}`, "_blank");
 }
 
-// Fonction intelligente qui teste /auth/register-phone puis /register-phone en cas de 404
+// Test intelligent multi-routes pour l'inscription par téléphone
 export async function registerWithPhone(name, phone, password) {
-  let res = await fetch(`${API_BASE_URL}/auth/register-phone`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, phone, password }),
-  });
-  if (res.status === 404) {
-    res = await fetch(`${API_BASE_URL}/register-phone`, {
+  const paths = [
+    "/auth/register-phone",
+    "/register-phone",
+    "/api/auth/register-phone",
+    "/api/register-phone"
+  ];
+  let res;
+  for (const path of paths) {
+    res = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, phone, password }),
     });
+    if (res.status !== 404) break;
   }
-  if (!res.ok) throw new Error("Erreur d'inscription par téléphone");
+  if (!res || !res.ok) throw new Error("Erreur d'inscription par téléphone");
   return await res.json();
 }
 
 export async function confirmPhoneCode(phone, confirmation_code) {
-  let res = await fetch(`${API_BASE_URL}/auth/confirm-phone`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, confirmation_code }),
-  });
-  if (res.status === 404) {
-    res = await fetch(`${API_BASE_URL}/confirm-phone`, {
+  const paths = [
+    "/auth/confirm-phone",
+    "/confirm-phone",
+    "/api/auth/confirm-phone",
+    "/api/confirm-phone"
+  ];
+  let res;
+  for (const path of paths) {
+    res = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone, confirmation_code }),
     });
+    if (res.status !== 404) break;
   }
-  if (!res.ok) throw new Error("Code de confirmation incorrect");
+  if (!res || !res.ok) throw new Error("Code de confirmation incorrect");
   return await res.json();
 }
 
 export async function loginWithPhone(phone, password) {
-  let res = await fetch(`${API_BASE_URL}/auth/login-phone`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone, password }),
-  });
-  if (res.status === 404) {
-    res = await fetch(`${API_BASE_URL}/login-phone`, {
+  const paths = [
+    "/auth/login-phone",
+    "/login-phone",
+    "/api/auth/login-phone",
+    "/api/login-phone"
+  ];
+  let res;
+  for (const path of paths) {
+    res = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ phone, password }),
     });
+    if (res.status !== 404) break;
   }
-  if (!res.ok) throw new Error("Erreur de connexion");
+  if (!res || !res.ok) throw new Error("Erreur de connexion");
   return await res.json();
 }
 
