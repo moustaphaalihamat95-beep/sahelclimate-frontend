@@ -97,32 +97,54 @@ export function downloadReport(parcelId, format = "pdf") {
   window.open(`${API_BASE_URL}/parcels/${parcelId}/export/${format}`, "_blank");
 }
 
+// Fonction intelligente qui teste /auth/register-phone puis /register-phone en cas de 404
 export async function registerWithPhone(name, phone, password) {
-  const res = await fetch(`${API_BASE_URL}/auth/register-phone`, {
+  let res = await fetch(`${API_BASE_URL}/auth/register-phone`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, phone, password }),
   });
+  if (res.status === 404) {
+    res = await fetch(`${API_BASE_URL}/register-phone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, phone, password }),
+    });
+  }
   if (!res.ok) throw new Error("Erreur d'inscription par téléphone");
   return await res.json();
 }
 
 export async function confirmPhoneCode(phone, confirmation_code) {
-  const res = await fetch(`${API_BASE_URL}/auth/confirm-phone`, {
+  let res = await fetch(`${API_BASE_URL}/auth/confirm-phone`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone, confirmation_code }),
   });
+  if (res.status === 404) {
+    res = await fetch(`${API_BASE_URL}/confirm-phone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, confirmation_code }),
+    });
+  }
   if (!res.ok) throw new Error("Code de confirmation incorrect");
   return await res.json();
 }
 
 export async function loginWithPhone(phone, password) {
-  const res = await fetch(`${API_BASE_URL}/auth/login-phone`, {
+  let res = await fetch(`${API_BASE_URL}/auth/login-phone`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ phone, password }),
   });
+  if (res.status === 404) {
+    res = await fetch(`${API_BASE_URL}/login-phone`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, password }),
+    });
+  }
   if (!res.ok) throw new Error("Erreur de connexion");
   return await res.json();
 }
