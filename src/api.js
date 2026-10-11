@@ -1,4 +1,4 @@
-const API_URL = "https://sahelclimate-api.onrender.com";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://sahelclimate-api.onrender.com";
 
 export async function loginUser(email, password) {
   const res = await fetch(`${API_BASE_URL}/auth/login`, {
