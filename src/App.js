@@ -19,16 +19,26 @@ function App() {
   const [parcels, setParcels] = useState([]);
   const [trainings, setTrainings] = useState([]);
   const [communityPosts, setCommunityPosts] = useState([]);
+  const [weather, setWeather] = useState(null);
 
   // Formulaires
   const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro' });
   const [newPost, setNewPost] = useState({ author: '', location: 'Moussoro', message: '' });
 
   useEffect(() => {
+    fetchWeather();
     fetchParcels();
     fetchTrainings();
     fetchCommunity();
   }, []);
+
+  const fetchWeather = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/weather`);
+      const data = await res.json();
+      setWeather(data);
+    } catch (e) { console.error(e); }
+  };
 
   const fetchParcels = async () => {
     try {
@@ -123,6 +133,7 @@ function App() {
 
       <nav className="nav-tabs">
         <button className={activeTab === 'ia' ? 'active' : ''} onClick={() => setActiveTab('ia')}>🤖 IA & Diagnostic</button>
+        <button className={activeTab === 'weather' ? 'active' : ''} onClick={() => setActiveTab('weather')}>🌤️ Météo & Alertes</button>
         <button className={activeTab === 'parcels' ? 'active' : ''} onClick={() => setActiveTab('parcels')}>🌴 Mes Parcelles</button>
         <button className={activeTab === 'trainings' ? 'active' : ''} onClick={() => setActiveTab('trainings')}>📚 Formations</button>
         <button className={activeTab === 'community' ? 'active' : ''} onClick={() => setActiveTab('community')}>💬 Communauté</button>
@@ -157,6 +168,50 @@ function App() {
               </div>
               {transcription && <div className="result-box"><h3>Résultat :</h3><p>{transcription}</p></div>}
             </section>
+          </div>
+        )}
+
+        {activeTab === 'weather' && (
+          <div>
+            {weather ? (
+              <div>
+                <section className="card weather-card">
+                  <h2>🌤️ Météo Locale - {weather.location}</h2>
+                  <div className="weather-grid">
+                    <div className="weather-item">
+                      <span className="weather-label">Température</span>
+                      <span className="weather-value">{weather.temperature}</span>
+                    </div>
+                    <div className="weather-item">
+                      <span className="weather-label">Humidité</span>
+                      <span className="weather-value">{weather.humidity}</span>
+                    </div>
+                    <div className="weather-item">
+                      <span className="weather-label">Vent</span>
+                      <span className="weather-value">{weather.wind}</span>
+                    </div>
+                    <div className="weather-item">
+                      <span className="weather-label">Conditions</span>
+                      <span className="weather-value">{weather.condition}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h2>⚠️ Alertes Agricoles & Conseils Climat</h2>
+                  {weather.alerts.map((alert) => (
+                    <div key={alert.id} className={`alert-card severity-${alert.severity.toLowerCase()}`}>
+                      <div className="alert-header">
+                        <strong>{alert.type}</strong> - <span className="badge-alert">{alert.severity}</span>
+                      </div>
+                      <p>{alert.message}</p>
+                    </div>
+                  ))}
+                </section>
+              </div>
+            ) : (
+              <p>Chargement des données météo...</p>
+            )}
           </div>
         )}
 
