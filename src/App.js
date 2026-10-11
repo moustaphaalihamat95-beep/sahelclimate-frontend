@@ -1,189 +1,234 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
 function App() {
+  const [activeTab, setActiveTab] = useState('ia');
+
+  // Etats AI
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [plantDiagnosis, setPlantDiagnosis] = useState('');
   const [loadingImage, setLoadingImage] = useState(false);
-
   const [selectedAudio, setSelectedAudio] = useState(null);
   const [transcription, setTranscription] = useState('');
   const [loadingAudio, setLoadingAudio] = useState(false);
 
-  // Gestion du choix / de la capture de photo
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedImage(file);
-      setImagePreview(URL.createObjectURL(file));
-      setPlantDiagnosis('');
-    }
+  // Etats Données
+  const [parcels, setParcels] = useState([]);
+  const [trainings, setTrainings] = useState([]);
+  const [communityPosts, setCommunityPosts] = useState([]);
+
+  // Formulaires
+  const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro' });
+  const [newPost, setNewPost] = useState({ author: '', location: 'Moussoro', message: '' });
+
+  useEffect(() => {
+    fetchParcels();
+    fetchTrainings();
+    fetchCommunity();
+  }, []);
+
+  const fetchParcels = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/parcels`);
+      const data = await res.json();
+      setParcels(data);
+    } catch (e) { console.error(e); }
   };
 
-  // Envoi de l'image au backend pour analyse
+  const fetchTrainings = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/trainings`);
+      const data = await res.json();
+      setTrainings(data);
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchCommunity = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/community`);
+      const data = await res.json();
+      setCommunityPosts(data);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleAddParcel = async (e) => {
+    e.preventDefault();
+    if (!newParcel.name || !newParcel.area_ha) return alert("Remplissez les champs requis");
+    try {
+      const res = await fetch(`${API_BASE_URL}/parcels`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newParcel, area_ha: parseFloat(newParcel.area_ha) })
+      });
+      if (res.ok) {
+        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro' });
+        fetchParcels();
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleAddPost = async (e) => {
+    e.preventDefault();
+    if (!newPost.author || !newPost.message) return alert("Remplissez les champs requis");
+    try {
+      const res = await fetch(`${API_BASE_URL}/community`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPost)
+      });
+      if (res.ok) {
+        setNewPost({ author: '', location: 'Moussoro', message: '' });
+        fetchCommunity();
+      }
+    } catch (e) { console.error(e); }
+  };
+
   const handleAnalyzePlant = async () => {
-    if (!selectedImage) return alert("Veuillez sélectionner ou prendre une photo de plante.");
-    
+    if (!selectedImage) return alert("Sélectionnez une photo.");
     setLoadingImage(true);
     setPlantDiagnosis('');
-
     const formData = new FormData();
     formData.append('file', selectedImage);
-
     try {
-      const response = await fetch(`${API_BASE_URL}/ai/analyze-plant-image`, {
-        method: 'POST',
-        body: formData,
-      });
-
+      const response = await fetch(`${API_BASE_URL}/ai/analyze-plant-image`, { method: 'POST', body: formData });
       const data = await response.json();
-      if (response.ok) {
-        setPlantDiagnosis(data.diagnosis);
-      } else {
-        setPlantDiagnosis(`Erreur : ${data.detail || "Problème d'analyse"}`);
-      }
-    } catch (error) {
-      setPlantDiagnosis(`Erreur de connexion : ${error.message}`);
-    } finally {
-      setLoadingImage(false);
-    }
+      setPlantDiagnosis(response.ok ? data.diagnosis : `Erreur : ${data.detail || "Problème d'analyse"}`);
+    } catch (error) { setPlantDiagnosis(`Erreur : ${error.message}`); }
+    finally { setLoadingImage(false); }
   };
 
-  // Gestion du fichier audio
-  const handleAudioChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedAudio(file);
-      setTranscription('');
-    }
-  };
-
-  // Envoi de l'audio au backend pour transcription
   const handleTranscribeAudio = async () => {
-    if (!selectedAudio) return alert("Veuillez sélectionner ou enregistrer un fichier audio.");
-
+    if (!selectedAudio) return alert("Sélectionnez un fichier audio.");
     setLoadingAudio(true);
     setTranscription('');
-
     const formData = new FormData();
     formData.append('file', selectedAudio);
-
     try {
-      const response = await fetch(`${API_BASE_URL}/ai/voice-to-text`, {
-        method: 'POST',
-        body: formData,
-      });
-
+      const response = await fetch(`${API_BASE_URL}/ai/voice-to-text`, { method: 'POST', body: formData });
       const data = await response.json();
-      if (response.ok) {
-        setTranscription(data.text);
-      } else {
-        setTranscription(`Erreur : ${data.detail || "Problème de transcription"}`);
-      }
-    } catch (error) {
-      setTranscription(`Erreur de connexion : ${error.message}`);
-    } finally {
-      setLoadingAudio(false);
-    }
+      setTranscription(response.ok ? data.text : `Erreur : ${data.detail || "Problème de transcription"}`);
+    } catch (error) { setTranscription(`Erreur : ${error.message}`); }
+    finally { setLoadingAudio(false); }
   };
 
   return (
     <div className="container">
       <header className="header">
         <h1>🌱 Tumaï Green Sahel</h1>
-        <p>Assistant IA Agro-Écologique pour le Sahel</p>
+        <p>Plateforme Agro-Écologique Intelligente</p>
       </header>
 
+      <nav className="nav-tabs">
+        <button className={activeTab === 'ia' ? 'active' : ''} onClick={() => setActiveTab('ia')}>🤖 IA & Diagnostic</button>
+        <button className={activeTab === 'parcels' ? 'active' : ''} onClick={() => setActiveTab('parcels')}>🌴 Mes Parcelles</button>
+        <button className={activeTab === 'trainings' ? 'active' : ''} onClick={() => setActiveTab('trainings')}>📚 Formations</button>
+        <button className={activeTab === 'community' ? 'active' : ''} onClick={() => setActiveTab('community')}>💬 Communauté</button>
+      </nav>
+
       <main className="main-content">
-        {/* Module Vision / Diagnostic Photo */}
-        <section className="card">
-          <h2>📸 Diagnostic Santé de la Plante</h2>
-          <p>Prenez une photo d'une feuille ou culture malade pour obtenir un traitement écologique.</p>
-          
-          <input 
-            type="file" 
-            accept="image/*" 
-            capture="environment" 
-            id="cameraInput"
-            onChange={handleImageChange}
-            style={{ display: 'none' }}
-          />
-          
-          <div className="button-group">
-            <button 
-              className="btn btn-secondary"
-              onClick={() => document.getElementById('cameraInput').click()}
-            >
-              📷 Prendre / Chosir une photo
-            </button>
-            
-            {selectedImage && (
-              <button 
-                className="btn btn-primary" 
-                onClick={handleAnalyzePlant}
-                disabled={loadingImage}
-              >
-                {loadingImage ? "Analyse en cours..." : "🔍 Analyser la plante"}
-              </button>
-            )}
+        {activeTab === 'ia' && (
+          <div>
+            <section className="card">
+              <h2>📸 Diagnostic Plante par Image</h2>
+              <input type="file" accept="image/*" capture="environment" id="cameraInput" onChange={(e) => {
+                const f = e.target.files[0];
+                if (f) { setSelectedImage(f); setImagePreview(URL.createObjectURL(f)); setPlantDiagnosis(''); }
+              }} style={{ display: 'none' }} />
+              <div className="button-group">
+                <button className="btn btn-secondary" onClick={() => document.getElementById('cameraInput').click()}>📷 Capturer une Photo</button>
+                {selectedImage && <button className="btn btn-primary" onClick={handleAnalyzePlant} disabled={loadingImage}>{loadingImage ? "Analyse..." : "🔍 Analyser"}</button>}
+              </div>
+              {imagePreview && <div className="preview-container"><img src={imagePreview} alt="Aperçu" className="image-preview" /></div>}
+              {plantDiagnosis && <div className="result-box"><h3>Diagnostic :</h3><p>{plantDiagnosis}</p></div>}
+            </section>
+
+            <section className="card">
+              <h2>🎙️ Transcription Vocale</h2>
+              <input type="file" accept="audio/*" id="audioInput" onChange={(e) => {
+                const f = e.target.files[0];
+                if (f) { setSelectedAudio(f); setTranscription(''); }
+              }} style={{ display: 'none' }} />
+              <div className="button-group">
+                <button className="btn btn-secondary" onClick={() => document.getElementById('audioInput').click()}>🎤 Message Audio</button>
+                {selectedAudio && <button className="btn btn-primary" onClick={handleTranscribeAudio} disabled={loadingAudio}>{loadingAudio ? "Transcription..." : "📝 Transcrire"}</button>}
+              </div>
+              {transcription && <div className="result-box"><h3>Résultat :</h3><p>{transcription}</p></div>}
+            </section>
           </div>
+        )}
 
-          {imagePreview && (
-            <div className="preview-container">
-              <img src={imagePreview} alt="Aperçu culture" className="image-preview" />
-            </div>
-          )}
+        {activeTab === 'parcels' && (
+          <div>
+            <section className="card">
+              <h2>➕ Ajouter une Parcelle</h2>
+              <form onSubmit={handleAddParcel} className="form-grid">
+                <input type="text" placeholder="Nom de la parcelle" value={newParcel.name} onChange={(e) => setNewParcel({...newParcel, name: e.target.value})} required />
+                <input type="number" step="0.1" placeholder="Superficie (ha)" value={newParcel.area_ha} onChange={(e) => setNewParcel({...newParcel, area_ha: e.target.value})} required />
+                <select value={newParcel.crop_type} onChange={(e) => setNewParcel({...newParcel, crop_type: e.target.value})}>
+                  <option value="Mil">Mil / Sorgho</option>
+                  <option value="Sésame">Sésame</option>
+                  <option value="Maïs">Maïs</option>
+                  <option value="Arachide">Arachide</option>
+                  <option value="Maraîchage">Maraîchage</option>
+                </select>
+                <button type="submit" className="btn btn-primary">Enregistrer la Parcelle</button>
+              </form>
+            </section>
 
-          {plantDiagnosis && (
-            <div className="result-box">
-              <h3>Résultat du Diagnostic :</h3>
-              <p>{plantDiagnosis}</p>
-            </div>
-          )}
-        </section>
-
-        {/* Module Vocal / Whisper */}
-        <section className="card">
-          <h2>🎙️ Assistant Vocal Agricole</h2>
-          <p>Posez votre question en enregistrant un message vocal.</p>
-
-          <input 
-            type="file" 
-            accept="audio/*" 
-            id="audioInput"
-            onChange={handleAudioChange}
-            style={{ display: 'none' }}
-          />
-
-          <div className="button-group">
-            <button 
-              className="btn btn-secondary"
-              onClick={() => document.getElementById('audioInput').click()}
-            >
-              🎤 Sélectionner / Enregistrer un vocal
-            </button>
-
-            {selectedAudio && (
-              <button 
-                className="btn btn-primary" 
-                onClick={handleTranscribeAudio}
-                disabled={loadingAudio}
-              >
-                {loadingAudio ? "Transcription en cours..." : "📝 Transcrire la voix"}
-              </button>
-            )}
+            <section className="card">
+              <h2>🌴 Mes Parcelles Enregistrées ({parcels.length})</h2>
+              {parcels.map((p) => (
+                <div key={p.id} className="item-card">
+                  <h3>{p.name}</h3>
+                  <p><strong>Superficie:</strong> {p.area_ha} ha | <strong>Culture:</strong> {p.crop_type}</p>
+                  <p><strong>Localisation:</strong> {p.location} | <strong>Statut:</strong> <span className="badge">{p.status}</span></p>
+                </div>
+              ))}
+            </section>
           </div>
+        )}
 
-          {transcription && (
-            <div className="result-box">
-              <h3>Texte transcrit :</h3>
-              <p>{transcription}</p>
-            </div>
-          )}
-        </section>
+        {activeTab === 'trainings' && (
+          <section className="card">
+            <h2>📚 Fiches & Guides Agro-Écologiques</h2>
+            {trainings.map((t) => (
+              <div key={t.id} className="item-card">
+                <span className="category-tag">{t.category}</span>
+                <h3>{t.title}</h3>
+                <p>{t.summary}</p>
+                <small>⏱️ Durée de lecture : {t.duration}</small>
+              </div>
+            ))}
+          </section>
+        )}
+
+        {activeTab === 'community' && (
+          <div>
+            <section className="card">
+              <h2>📢 Publier une Alerte ou un Message</h2>
+              <form onSubmit={handleAddPost} className="form-grid">
+                <input type="text" placeholder="Votre nom" value={newPost.author} onChange={(e) => setNewPost({...newPost, author: e.target.value})} required />
+                <textarea placeholder="Votre message ou alerte agricole..." value={newPost.message} onChange={(e) => setNewPost({...newPost, message: e.target.value})} required />
+                <button type="submit" className="btn btn-primary">Publier</button>
+              </form>
+            </section>
+
+            <section className="card">
+              <h2>💬 Fil d'Échange Communautaire</h2>
+              {communityPosts.map((post) => (
+                <div key={post.id} className="item-card">
+                  <div className="post-header">
+                    <strong>{post.author}</strong> ({post.location}) - <small>{post.date}</small>
+                  </div>
+                  <p>{post.message}</p>
+                </div>
+              ))}
+            </section>
+          </div>
+        )}
       </main>
     </div>
   );
