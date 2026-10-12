@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import './App.css';
+
+// Fix icônes par défaut Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
@@ -22,7 +33,7 @@ function App() {
   const [weather, setWeather] = useState(null);
 
   // Formulaires
-  const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro' });
+  const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: '13.6405', lng: '16.4901' });
   const [newPost, setNewPost] = useState({ author: '', location: 'Moussoro', message: '' });
 
   useEffect(() => {
@@ -71,10 +82,15 @@ function App() {
       const res = await fetch(`${API_BASE_URL}/parcels`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newParcel, area_ha: parseFloat(newParcel.area_ha) })
+        body: JSON.stringify({
+          ...newParcel,
+          area_ha: parseFloat(newParcel.area_ha),
+          lat: parseFloat(newParcel.lat),
+          lng: parseFloat(newParcel.lng)
+        })
       });
       if (res.ok) {
-        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro' });
+        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: '13.6405', lng: '16.4901' });
         fetchParcels();
       }
     } catch (e) { console.error(e); }
@@ -133,6 +149,7 @@ function App() {
 
       <nav className="nav-tabs">
         <button className={activeTab === 'ia' ? 'active' : ''} onClick={() => setActiveTab('ia')}>🤖 IA & Diagnostic</button>
+        <button className={activeTab === 'map' ? 'active' : ''} onClick={() => setActiveTab('map')}>🗺️ Carte Parcelles</button>
         <button className={activeTab === 'weather' ? 'active' : ''} onClick={() => setActiveTab('weather')}>🌤️ Météo & Alertes</button>
         <button className={activeTab === 'parcels' ? 'active' : ''} onClick={() => setActiveTab('parcels')}>🌴 Mes Parcelles</button>
         <button className={activeTab === 'trainings' ? 'active' : ''} onClick={() => setActiveTab('trainings')}>📚 Formations</button>
@@ -169,6 +186,30 @@ function App() {
               {transcription && <div className="result-box"><h3>Résultat :</h3><p>{transcription}</p></div>}
             </section>
           </div>
+        )}
+
+        {activeTab === 'map' && (
+          <section className="card">
+            <h2>🗺️ Cartographie Satellite des Parcelles</h2>
+            <p>Vue interactive des champs géolocalisés à Moussoro / Barh El Gazel :</p>
+            <div className="map-wrapper">
+              <MapContainer center={[13.6405, 16.4901]} zoom={13} scrollWheelZoom={false} style={{ height: "350px", width: "100%", borderRadius: "8px" }}>
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                {parcels.map((p) => (
+                  <Marker key={p.id} position={[p.lat || 13.6405, p.lng || 16.4901]}>
+                    <Popup>
+                      <strong>{p.name}</strong><br />
+                      Culture: {p.crop_type}<br />
+                      Superficie: {p.area_ha} ha
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            </div>
+          </section>
         )}
 
         {activeTab === 'weather' && (
@@ -218,7 +259,7 @@ function App() {
         {activeTab === 'parcels' && (
           <div>
             <section className="card">
-              <h2>➕ Ajouter une Parcelle</h2>
+              <h2>➕ Ajouter une Parcelle avec Coordonnées GPS</h2>
               <form onSubmit={handleAddParcel} className="form-grid">
                 <input type="text" placeholder="Nom de la parcelle" value={newParcel.name} onChange={(e) => setNewParcel({...newParcel, name: e.target.value})} required />
                 <input type="number" step="0.1" placeholder="Superficie (ha)" value={newParcel.area_ha} onChange={(e) => setNewParcel({...newParcel, area_ha: e.target.value})} required />
@@ -229,6 +270,10 @@ function App() {
                   <option value="Arachide">Arachide</option>
                   <option value="Maraîchage">Maraîchage</option>
                 </select>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input type="number" step="0.0001" placeholder="Latitude" value={newParcel.lat} onChange={(e) => setNewParcel({...newParcel, lat: e.target.value})} required />
+                  <input type="number" step="0.0001" placeholder="Longitude" value={newParcel.lng} onChange={(e) => setNewParcel({...newParcel, lng: e.target.value})} required />
+                </div>
                 <button type="submit" className="btn btn-primary">Enregistrer la Parcelle</button>
               </form>
             </section>
@@ -239,7 +284,7 @@ function App() {
                 <div key={p.id} className="item-card">
                   <h3>{p.name}</h3>
                   <p><strong>Superficie:</strong> {p.area_ha} ha | <strong>Culture:</strong> {p.crop_type}</p>
-                  <p><strong>Localisation:</strong> {p.location} | <strong>Statut:</strong> <span className="badge">{p.status}</span></p>
+                  <p><strong>GPS:</strong> {p.lat}, {p.lng} | <strong>Statut:</strong> <span className="badge">{p.status}</span></p>
                 </div>
               ))}
             </section>
