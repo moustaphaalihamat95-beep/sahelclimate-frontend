@@ -22,7 +22,7 @@ function App() {
   const [confirmPassword, setConfirmPassword] = useState('123456');
   const [channel, setChannel] = useState('sms');
 
-  const [step, setStep] = useState('register'); // 'register', 'verify'
+  const [step, setStep] = useState('register');
   const [codeInput, setCodeInput] = useState('123456');
   const [generatedCode, setGeneratedCode] = useState('123456');
   const [targetDestination, setTargetDestination] = useState('');
@@ -42,12 +42,9 @@ function App() {
 
     const destination = channel === 'sms' ? phone : (email || phone);
     setTargetDestination(destination);
-    setGeneratedCode("123456");
-    setCodeInput("123456");
 
-    // Tentative d'appel API en arrière-plan sans bloquer l'utilisateur en cas d'erreur
     try {
-      await fetch(`${API_BASE_URL}/auth/register`, {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -60,8 +57,14 @@ function App() {
           delivery_channel: channel
         })
       });
+      const data = await res.json();
+      if (data.verification_code) {
+        setGeneratedCode(data.verification_code);
+        setCodeInput(data.verification_code);
+      }
     } catch (err) {
-      // Ignorer l'erreur réseau pour garantir un accès immédiat
+      setGeneratedCode("123456");
+      setCodeInput("123456");
     } finally {
       setLoading(false);
       setStep('verify');
@@ -70,8 +73,6 @@ function App() {
 
   const handleVerifySubmit = (e) => {
     e.preventDefault();
-    setLoading(true);
-
     const newUser = {
       full_name: fullName,
       phone_number: phone,
@@ -79,13 +80,10 @@ function App() {
       address: address,
       email: email
     };
-
     try {
       localStorage.setItem('sahel_user', JSON.stringify(newUser));
     } catch (err) {}
-
     setUser(newUser);
-    setLoading(false);
   };
 
   const handleLogout = () => {
@@ -169,8 +167,8 @@ function App() {
                 style={{ padding: '12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '1.3rem', textAlign: 'center', letterSpacing: '4px' }} 
               />
 
-              <button type="submit" disabled={loading} style={{ background: '#2e7d32', color: '#fff', padding: '12px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {loading ? "Validation..." : "Valider mon Compte"}
+              <button type="submit" style={{ background: '#2e7d32', color: '#fff', padding: '12px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
+                Valider mon Compte
               </button>
             </form>
           )}
