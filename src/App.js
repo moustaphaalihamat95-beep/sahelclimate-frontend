@@ -1,18 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [phone, setPhone] = useState('');
-  const [fullName, setFullName] = useState('');
+  // Initialisation persistante via localStorage pour éviter le retour à zéro (flash)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('tuma_logged') === 'true';
+  });
+  
+  const [phone, setPhone] = useState(() => localStorage.getItem('tuma_phone') || '');
+  const [fullName, setFullName] = useState(() => localStorage.getItem('tuma_name') || '');
   const [currentScreen, setCurrentScreen] = useState('home');
 
   const [profile, setProfile] = useState({
-    full_name: 'Moustapha Ali hamat',
+    full_name: localStorage.getItem('tuma_name') || 'Moustapha Ali hamat',
     email: 'moustapha.ali.hamat@example.com',
-    phone: '+23560646072',
+    phone: localStorage.getItem('tuma_phone') || '+23560646072',
     city: 'Moussoro',
     province: 'Barh El Gazel',
     avatar_url: ''
@@ -59,24 +63,30 @@ export default function App() {
   const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: 13.6405, lng: 16.4901 });
   const [newPost, setNewPost] = useState({ message: '' });
 
-  // Gestion Connexion / Inscription propre
+  // Connexion stable sans rechargement
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!phone) return alert("Veuillez entrer votre numéro de téléphone");
-    
+
+    const nameToUse = fullName.trim() || 'Moustapha Ali hamat';
+
+    // Sauvegarde immédiate dans le stockage local pour bloquer le flash
+    localStorage.setItem('tuma_logged', 'true');
+    localStorage.setItem('tuma_phone', phone);
+    localStorage.setItem('tuma_name', nameToUse);
+
+    setIsLoggedIn(true);
+    setProfile(prev => ({ ...prev, phone, full_name: nameToUse }));
+
+    // Appel optionnel en arrière-plan vers le backend (sans bloquer l'UI)
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login-phone`, {
+      await fetch(`${API_BASE_URL}/auth/login-phone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, full_name: fullName || 'Moustapha Ali hamat' })
+        body: JSON.stringify({ phone, full_name: nameToUse })
       });
-      if (res.ok) {
-        setIsLoggedIn(true);
-        setProfile(prev => ({ ...prev, phone, full_name: fullName || prev.full_name }));
-      }
     } catch (err) {
-      // Fallback local en cas de lenteur réseau
-      setIsLoggedIn(true);
+      console.log("Mode autonome actif");
     }
   };
 
@@ -142,14 +152,14 @@ export default function App() {
     }, 1000);
   };
 
-  // Si l'utilisateur n'est pas connecté, afficher l'écran de connexion propre (comme sur votre image)
+  // Écran de connexion (affiché uniquement si non connecté)
   if (!isLoggedIn) {
     return (
       <div className="app-viewport" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '20px' }}>
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <span style={{ fontSize: '3rem' }}>🌾</span>
           <h1 style={{ color: '#1b5e20', fontSize: '1.5rem', margin: '10px 0' }}>SahelClimate-AI</h1>
-          <p style={{ color: '#555', fontSize: '0.9rem' }}>Création de compte par Téléphone</p>
+          <p style={{ color: '#555', fontSize: '0.9rem' }}>Connexion par Téléphone</p>
         </div>
 
         <form onSubmit={handleLogin} className="form-stack">
@@ -162,7 +172,7 @@ export default function App() {
             <input type="text" placeholder="+235..." value={phone} onChange={(e) => setPhone(e.target.value)} required />
           </div>
           <button type="submit" className="btn btn-main" style={{ marginTop: '10px' }}>
-            Envoyer le Code SMS
+            Accéder à l'application
           </button>
         </form>
       </div>
