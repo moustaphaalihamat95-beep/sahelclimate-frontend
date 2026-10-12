@@ -1,16 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './App.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
 export default function App() {
-  // Initialisation persistante via localStorage pour éviter le retour à zéro (flash)
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('tuma_logged') === 'true';
-  });
-  
+  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('tuma_logged') === 'true');
   const [phone, setPhone] = useState(() => localStorage.getItem('tuma_phone') || '');
   const [fullName, setFullName] = useState(() => localStorage.getItem('tuma_name') || '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
 
   const [profile, setProfile] = useState({
@@ -32,8 +29,6 @@ export default function App() {
   });
 
   const [feedback, setFeedback] = useState({ subject: 'Problème technique', message: '' });
-  const [sendingFeedback, setSendingFeedback] = useState(false);
-
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [plantDiagnosis, setPlantDiagnosis] = useState('');
@@ -63,42 +58,39 @@ export default function App() {
   const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: 13.6405, lng: 16.4901 });
   const [newPost, setNewPost] = useState({ message: '' });
 
-  // Connexion stable sans rechargement
-  const handleLogin = async (e) => {
+  // Connexion protégée contre les doubles soumissions (Anti-Flash)
+  const handleLogin = (e) => {
     e.preventDefault();
+    e.stopPropagation();
+
+    // Empêcher toute deuxième exécution si l'envoi est déjà en cours ou connecté
+    if (isSubmitting || isLoggedIn) return;
     if (!phone) return alert("Veuillez entrer votre numéro de téléphone");
 
+    setIsSubmitting(true);
     const nameToUse = fullName.trim() || 'Moustapha Ali hamat';
 
-    // Sauvegarde immédiate dans le stockage local pour bloquer le flash
+    // Sauvegarde synchrone irréversible
     localStorage.setItem('tuma_logged', 'true');
     localStorage.setItem('tuma_phone', phone);
     localStorage.setItem('tuma_name', nameToUse);
 
-    setIsLoggedIn(true);
     setProfile(prev => ({ ...prev, phone, full_name: nameToUse }));
+    setIsLoggedIn(true);
 
-    // Appel optionnel en arrière-plan vers le backend (sans bloquer l'UI)
-    try {
-      await fetch(`${API_BASE_URL}/auth/login-phone`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, full_name: nameToUse })
-      });
-    } catch (err) {
-      console.log("Mode autonome actif");
-    }
+    // Envoi asynchrone sécurisé au backend sans ré-exécuter le composant
+    fetch(`${API_BASE_URL}/auth/login-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, full_name: nameToUse })
+    }).catch(() => {}).finally(() => setIsSubmitting(false));
   };
 
   const handleSendFeedback = (e) => {
     e.preventDefault();
     if (!feedback.message) return alert("Veuillez saisir votre message");
-    setSendingFeedback(true);
-    setTimeout(() => {
-      alert("Message transmis au développeur avec succès !");
-      setFeedback({ subject: 'Problème technique', message: '' });
-      setSendingFeedback(false);
-    }, 500);
+    alert("Message transmis au développeur avec succès !");
+    setFeedback({ subject: 'Problème technique', message: '' });
   };
 
   const handleSaveProfile = (e) => {
@@ -138,7 +130,7 @@ export default function App() {
     if (!selectedImage) return alert("Sélectionnez une photo.");
     setLoadingImage(true);
     setTimeout(() => {
-      setPlantDiagnosis("Analyse : Plante saine avec un bon développement. Veillez à maintenir une irrigation régulière le matin.");
+      setPlantDiagnosis("Analyse : Plante saine avec un bon développement.");
       setLoadingImage(false);
     }, 1000);
   };
@@ -147,12 +139,11 @@ export default function App() {
     if (!selectedAudio) return alert("Sélectionnez un audio.");
     setLoadingAudio(true);
     setTimeout(() => {
-      setTranscription("Transcription : Comment optimiser l'arrosage de mon champ de sésame ?");
+      setTranscription("Transcription : Comment optimiser l'arrosage de mon champ ?");
       setLoadingAudio(false);
     }, 1000);
   };
 
-  // Écran de connexion (affiché uniquement si non connecté)
   if (!isLoggedIn) {
     return (
       <div className="app-viewport" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '20px' }}>
@@ -171,8 +162,8 @@ export default function App() {
             <label className="input-label">Numéro de Téléphone</label>
             <input type="text" placeholder="+235..." value={phone} onChange={(e) => setPhone(e.target.value)} required />
           </div>
-          <button type="submit" className="btn btn-main" style={{ marginTop: '10px' }}>
-            Accéder à l'application
+          <button type="submit" className="btn btn-main" style={{ marginTop: '10px' }} disabled={isSubmitting}>
+            {isSubmitting ? "Chargement..." : "Accéder à l'application"}
           </button>
         </form>
       </div>
@@ -304,9 +295,7 @@ export default function App() {
                   <label className="input-label">Votre Message</label>
                   <textarea rows="4" placeholder="Décrivez votre besoin..." value={feedback.message} onChange={(e) => setFeedback({...feedback, message: e.target.value})} required />
                 </div>
-                <button type="submit" className="btn btn-main" disabled={sendingFeedback}>
-                  {sendingFeedback ? "Envoi..." : "🚀 Envoyer"}
-                </button>
+                <button type="submit" className="btn btn-main">🚀 Envoyer</button>
               </form>
             </section>
           </div>
