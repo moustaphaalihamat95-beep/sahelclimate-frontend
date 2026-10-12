@@ -4,10 +4,11 @@ import './App.css';
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('tuma_logged') === 'true');
+  // État de connexion persistant
+  const [isLoggedIn, setIsLoggedIn] = useState(() => localStorage.getItem('tuma_auth') === 'active');
   const [phone, setPhone] = useState(() => localStorage.getItem('tuma_phone') || '');
   const [fullName, setFullName] = useState(() => localStorage.getItem('tuma_name') || '');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
 
   const [profile, setProfile] = useState({
@@ -58,32 +59,45 @@ export default function App() {
   const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: 13.6405, lng: 16.4901 });
   const [newPost, setNewPost] = useState({ message: '' });
 
-  // Connexion protégée contre les doubles soumissions (Anti-Flash)
-  const handleLogin = (e) => {
+  // Inscription / Connexion validée et stable
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
-    e.stopPropagation();
+    if (!phone || !fullName) {
+      alert("Veuillez remplir votre nom et votre numéro de téléphone.");
+      return;
+    }
 
-    // Empêcher toute deuxième exécution si l'envoi est déjà en cours ou connecté
-    if (isSubmitting || isLoggedIn) return;
-    if (!phone) return alert("Veuillez entrer votre numéro de téléphone");
+    setLoading(true);
 
-    setIsSubmitting(true);
-    const nameToUse = fullName.trim() || 'Moustapha Ali hamat';
+    const cleanPhone = phone.trim();
+    const cleanName = fullName.trim();
 
-    // Sauvegarde synchrone irréversible
-    localStorage.setItem('tuma_logged', 'true');
-    localStorage.setItem('tuma_phone', phone);
-    localStorage.setItem('tuma_name', nameToUse);
+    try {
+      // Appel au backend FastAPI pour enregistrer ou connecter l'utilisateur
+      await fetch(`${API_BASE_URL}/auth/login-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: cleanPhone, full_name: cleanName })
+      });
+    } catch (err) {
+      console.log("Mode hors-ligne ou erreur backend ignorée pour assurer l'accès");
+    }
 
-    setProfile(prev => ({ ...prev, phone, full_name: nameToUse }));
+    // Sauvegarde persistante locale immédiate
+    localStorage.setItem('tuma_auth', 'active');
+    localStorage.setItem('tuma_phone', cleanPhone);
+    localStorage.setItem('tuma_name', cleanName);
+
+    setProfile(prev => ({ ...prev, phone: cleanPhone, full_name: cleanName }));
     setIsLoggedIn(true);
+    setLoading(false);
+  };
 
-    // Envoi asynchrone sécurisé au backend sans ré-exécuter le composant
-    fetch(`${API_BASE_URL}/auth/login-phone`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, full_name: nameToUse })
-    }).catch(() => {}).finally(() => setIsSubmitting(false));
+  const handleLogout = () => {
+    localStorage.removeItem('tuma_auth');
+    localStorage.removeItem('tuma_phone');
+    localStorage.removeItem('tuma_name');
+    setIsLoggedIn(false);
   };
 
   const handleSendFeedback = (e) => {
@@ -144,26 +158,39 @@ export default function App() {
     }, 1000);
   };
 
+  // Écran d'authentification si non connecté
   if (!isLoggedIn) {
     return (
       <div className="app-viewport" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <span style={{ fontSize: '3rem' }}>🌾</span>
-          <h1 style={{ color: '#1b5e20', fontSize: '1.5rem', margin: '10px 0' }}>SahelClimate-AI</h1>
-          <p style={{ color: '#555', fontSize: '0.9rem' }}>Connexion par Téléphone</p>
+        <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+          <span style={{ fontSize: '3.5rem' }}>🌾</span>
+          <h1 style={{ color: '#1b5e20', fontSize: '1.6rem', margin: '10px 0' }}>Tumaï Green Sahel</h1>
+          <p style={{ color: '#555', fontSize: '0.95rem' }}>Inscription & Connexion Sécurisée</p>
         </div>
 
-        <form onSubmit={handleLogin} className="form-stack">
+        <form onSubmit={handleAuthSubmit} className="form-stack">
           <div>
             <label className="input-label">Nom et Prénom</label>
-            <input type="text" placeholder="Votre nom complet" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+            <input 
+              type="text" 
+              placeholder="Ex: Moustapha Ali hamat" 
+              value={fullName} 
+              onChange={(e) => setFullName(e.target.value)} 
+              required 
+            />
           </div>
           <div>
             <label className="input-label">Numéro de Téléphone</label>
-            <input type="text" placeholder="+235..." value={phone} onChange={(e) => setPhone(e.target.value)} required />
+            <input 
+              type="text" 
+              placeholder="Ex: +235 60..." 
+              value={phone} 
+              onChange={(e) => setPhone(e.target.value)} 
+              required 
+            />
           </div>
-          <button type="submit" className="btn btn-main" style={{ marginTop: '10px' }} disabled={isSubmitting}>
-            {isSubmitting ? "Chargement..." : "Accéder à l'application"}
+          <button type="submit" className="btn btn-main" style={{ marginTop: '10px' }} disabled={loading}>
+            {loading ? "Validation en cours..." : "Valider et Accéder"}
           </button>
         </form>
       </div>
@@ -180,17 +207,15 @@ export default function App() {
             <p className="brand-sub">{profile.city}, {profile.province}</p>
           </div>
         </div>
-        {currentScreen !== 'home' ? (
-          <button className="back-btn" onClick={() => setCurrentScreen('home')}>⬅️ Retour</button>
-        ) : (
-          <div className="profile-badge-header" onClick={() => setCurrentScreen('profile')}>
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt="Avatar" className="header-avatar" />
-            ) : (
-              <span className="avatar-placeholder">👤</span>
-            )}
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {currentScreen !== 'home' ? (
+            <button className="back-btn" onClick={() => setCurrentScreen('home')}>⬅️ Retour</button>
+          ) : (
+            <button onClick={handleLogout} style={{ background: '#d32f2f', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+              Déconnexion
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="app-body">
