@@ -70,21 +70,25 @@ function App() {
   const fetchProfile = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/profile`);
-      const data = await res.json();
-      if (data) setProfile(data);
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.full_name) setProfile(data);
+      }
+    } catch (e) { console.error("Erreur profile:", e); }
   };
 
   const fetchDeveloperInfo = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/developer`);
-      const data = await res.json();
-      if (data) setDevInfo(data);
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.name) setDevInfo(data);
+      }
+    } catch (e) { console.error("Erreur devInfo:", e); }
   };
 
   const handleSendFeedback = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!feedback.message) return alert("Veuillez saisir votre message");
     setSendingFeedback(true);
     try {
@@ -107,7 +111,7 @@ function App() {
   };
 
   const handleSaveProfile = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setSavingProfile(true);
     try {
       const res = await fetch(`${API_BASE_URL}/profile`, {
@@ -132,7 +136,7 @@ function App() {
       });
       const data = await res.json();
       if (res.ok && data.avatar_url) {
-        setProfile({ ...profile, avatar_url: data.avatar_url });
+        setProfile((prev) => ({ ...prev, avatar_url: data.avatar_url }));
         alert("Photo de profil mise à jour !");
       }
     } catch (e) { console.error(e); }
@@ -141,37 +145,45 @@ function App() {
   const fetchWeather = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/weather`);
-      const data = await res.json();
-      setWeather(data);
+      if (res.ok) {
+        const data = await res.json();
+        setWeather(data);
+      }
     } catch (e) { console.error(e); }
   };
 
   const fetchParcels = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/parcels`);
-      const data = await res.json();
-      setParcels(data);
+      if (res.ok) {
+        const data = await res.json();
+        setParcels(Array.isArray(data) ? data : []);
+      }
     } catch (e) { console.error(e); }
   };
 
   const fetchTrainings = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/trainings`);
-      const data = await res.json();
-      setTrainings(data);
+      if (res.ok) {
+        const data = await res.json();
+        setTrainings(Array.isArray(data) ? data : []);
+      }
     } catch (e) { console.error(e); }
   };
 
   const fetchCommunity = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/community`);
-      const data = await res.json();
-      setCommunityPosts(data);
+      if (res.ok) {
+        const data = await res.json();
+        setCommunityPosts(Array.isArray(data) ? data : []);
+      }
     } catch (e) { console.error(e); }
   };
 
   const handleAddParcel = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!newParcel.name || !newParcel.area_ha) return alert("Remplissez les champs requis");
     try {
       const res = await fetch(`${API_BASE_URL}/parcels`, {
@@ -193,7 +205,7 @@ function App() {
   };
 
   const handleAddPost = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!newPost.message) return alert("Remplissez le message");
     try {
       const res = await fetch(`${API_BASE_URL}/community`, {
