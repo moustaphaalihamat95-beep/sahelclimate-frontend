@@ -15,6 +15,14 @@ L.Icon.Default.mergeOptions({
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
 function App() {
+  // Etats Authentification
+  const [user, setUser] = useState(null);
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'verify'
+  const [phoneInput, setPhoneInput] = useState('');
+  const [nameInput, setNameInput] = useState('');
+  const [codeInput, setCodeInput] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+
   const [activeTab, setActiveTab] = useState('ia');
 
   // Etats AI
@@ -73,6 +81,64 @@ function App() {
       const data = await res.json();
       setCommunityPosts(data);
     } catch (e) { console.error(e); }
+  };
+
+  // --- Fonctions d'Authentification ---
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setAuthMessage('Envoi du code...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/register-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phoneInput, full_name: nameInput })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAuthMessage(`Code envoyé ! (Test code: ${data.test_code})`);
+        setAuthMode('verify');
+      } else {
+        setAuthMessage(`Erreur : ${data.detail || "Échec inscription"}`);
+      }
+    } catch (err) { setAuthMessage(`Erreur réseau : ${err.message}`); }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthMessage('Vérification du numéro...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phoneInput })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAuthMessage(`Code de connexion envoyé ! (Test code: ${data.test_code})`);
+        setAuthMode('verify');
+      } else {
+        setAuthMessage(`Numéro non trouvé. Veuillez vous inscrire.`);
+      }
+    } catch (err) { setAuthMessage(`Erreur réseau : ${err.message}`); }
+  };
+
+  const handleVerifyCode = async (e) => {
+    e.preventDefault();
+    setAuthMessage('Validation...');
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/confirm-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phoneInput, code: codeInput })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUser(data.user);
+        setAuthMessage('');
+      } else {
+        setAuthMessage(`Code invalide (Essayez 123456)`);
+      }
+    } catch (err) { setAuthMessage(`Erreur réseau : ${err.message}`); }
   };
 
   const handleAddParcel = async (e) => {
@@ -140,18 +206,97 @@ function App() {
     finally { setLoadingAudio(false); }
   };
 
+  // Si l'utilisateur n'est pas connecté, afficher l'écran d'Authentification
+  if (!user) {
+    return (
+      <div className="container">
+        <header className="header">
+          <h1>🌱 Tumaï Green Sahel</h1>
+          <p>Connexion & Inscription Agriculteur</p>
+        </header>
+
+        <section className="card">
+          {authMode === 'login' && (
+            <div>
+              <h2>📱 Connexion par Téléphone</h2>
+              <form onSubmit={handleLogin} className="form-grid">
+                <input 
+                  type="text" 
+                  placeholder="Numéro de téléphone (ex: +23560646072)" 
+                  value={phoneInput} 
+                  onChange={(e) => setPhoneInput(e.target.value)} 
+                  required 
+                />
+                <button type="submit" className="btn btn-primary">Recevoir le code</button>
+              </form>
+              <p style={{ marginTop: '15px', textAlign: 'center', fontSize: '0.9rem' }}>
+                Pas encore de compte ? <button onClick={() => { setAuthMode('register'); setAuthMessage(''); }} style={{ background: 'none', border: 'none', color: '#2e7d32', fontWeight: 'bold', cursor: 'pointer' }}>S'inscrire</button>
+              </p>
+            </div>
+          )}
+
+          {authMode === 'register' && (
+            <div>
+              <h2>📝 Inscription par Téléphone</h2>
+              <form onSubmit={handleRegister} className="form-grid">
+                <input 
+                  type="text" 
+                  placeholder="Nom complet" 
+                  value={nameInput} 
+                  onChange={(e) => setNameInput(e.target.value)} 
+                  required 
+                />
+                <input 
+                  type="text" 
+                  placeholder="Numéro de téléphone (ex: +23560646072)" 
+                  value={phoneInput} 
+                  onChange={(e) => setPhoneInput(e.target.value)} 
+                  required 
+                />
+                <button type="submit" className="btn btn-primary">S'inscrire</button>
+              </form>
+              <p style={{ marginTop: '15px', textAlign: 'center', fontSize: '0.9rem' }}>
+                Déjà un compte ? <button onClick={() => { setAuthMode('login'); setAuthMessage(''); }} style={{ background: 'none', border: 'none', color: '#2e7d32', fontWeight: 'bold', cursor: 'pointer' }}>Se connecter</button>
+              </p>
+            </div>
+          )}
+
+          {authMode === 'verify' && (
+            <div>
+              <h2>🔑 Entrer le Code de Vérification</h2>
+              <p style={{ fontSize: '0.9rem', color: '#555' }}>Entrez le code reçu par SMS (Code de test : <strong>123456</strong>)</p>
+              <form onSubmit={handleVerifyCode} className="form-grid">
+                <input 
+                  type="text" 
+                  placeholder="Code à 6 chiffres (ex: 123456)" 
+                  value={codeInput} 
+                  onChange={(e) => setCodeInput(e.target.value)} 
+                  required 
+                />
+                <button type="submit" className="btn btn-primary">Valider le Code</button>
+              </form>
+            </div>
+          )}
+
+          {authMessage && <div className="result-box" style={{ marginTop: '15px' }}><p>{authMessage}</p></div>}
+        </section>
+      </div>
+    );
+  }
+
+  // Interface principale une fois connecté
   return (
     <div className="container">
       <header className="header">
         <h1>🌱 Tumaï Green Sahel</h1>
-        <p>Plateforme Agro-Écologique Intelligente</p>
+        <p>Bienvenue, <strong>{user.full_name}</strong> | <button onClick={() => setUser(null)} style={{ background: 'none', border: 'none', color: '#d32f2f', cursor: 'pointer', fontWeight: 'bold' }}>Déconnexion</button></p>
       </header>
 
       <nav className="nav-tabs">
-        <button className={activeTab === 'ia' ? 'active' : ''} onClick={() => setActiveTab('ia')}>🤖 IA & Diagnostic</button>
-        <button className={activeTab === 'map' ? 'active' : ''} onClick={() => setActiveTab('map')}>🗺️ Carte Parcelles</button>
-        <button className={activeTab === 'weather' ? 'active' : ''} onClick={() => setActiveTab('weather')}>🌤️ Météo & Alertes</button>
-        <button className={activeTab === 'parcels' ? 'active' : ''} onClick={() => setActiveTab('parcels')}>🌴 Mes Parcelles</button>
+        <button className={activeTab === 'ia' ? 'active' : ''} onClick={() => setActiveTab('ia')}>🤖 IA</button>
+        <button className={activeTab === 'map' ? 'active' : ''} onClick={() => setActiveTab('map')}>🗺️ Carte</button>
+        <button className={activeTab === 'weather' ? 'active' : ''} onClick={() => setActiveTab('weather')}>🌤️ Météo</button>
+        <button className={activeTab === 'parcels' ? 'active' : ''} onClick={() => setActiveTab('parcels')}>🌴 Parcelles</button>
         <button className={activeTab === 'trainings' ? 'active' : ''} onClick={() => setActiveTab('trainings')}>📚 Formations</button>
         <button className={activeTab === 'community' ? 'active' : ''} onClick={() => setActiveTab('community')}>💬 Communauté</button>
       </nav>
@@ -191,7 +336,6 @@ function App() {
         {activeTab === 'map' && (
           <section className="card">
             <h2>🗺️ Cartographie Satellite des Parcelles</h2>
-            <p>Vue interactive des champs géolocalisés à Moussoro / Barh El Gazel :</p>
             <div className="map-wrapper">
               <MapContainer center={[13.6405, 16.4901]} zoom={13} scrollWheelZoom={false} style={{ height: "350px", width: "100%", borderRadius: "8px" }}>
                 <TileLayer
@@ -259,7 +403,7 @@ function App() {
         {activeTab === 'parcels' && (
           <div>
             <section className="card">
-              <h2>➕ Ajouter une Parcelle avec Coordonnées GPS</h2>
+              <h2>➕ Ajouter une Parcelle avec GPS</h2>
               <form onSubmit={handleAddParcel} className="form-grid">
                 <input type="text" placeholder="Nom de la parcelle" value={newParcel.name} onChange={(e) => setNewParcel({...newParcel, name: e.target.value})} required />
                 <input type="number" step="0.1" placeholder="Superficie (ha)" value={newParcel.area_ha} onChange={(e) => setNewParcel({...newParcel, area_ha: e.target.value})} required />
@@ -279,12 +423,12 @@ function App() {
             </section>
 
             <section className="card">
-              <h2>🌴 Mes Parcelles Enregistrées ({parcels.length})</h2>
+              <h2>🌴 Mes Parcelles ({parcels.length})</h2>
               {parcels.map((p) => (
                 <div key={p.id} className="item-card">
                   <h3>{p.name}</h3>
                   <p><strong>Superficie:</strong> {p.area_ha} ha | <strong>Culture:</strong> {p.crop_type}</p>
-                  <p><strong>GPS:</strong> {p.lat}, {p.lng} | <strong>Statut:</strong> <span className="badge">{p.status}</span></p>
+                  <p><strong>GPS:</strong> {p.lat}, {p.lng} | <span className="badge">{p.status}</span></p>
                 </div>
               ))}
             </section>
@@ -299,7 +443,7 @@ function App() {
                 <span className="category-tag">{t.category}</span>
                 <h3>{t.title}</h3>
                 <p>{t.summary}</p>
-                <small>⏱️ Durée de lecture : {t.duration}</small>
+                <small>⏱️ Durée : {t.duration}</small>
               </div>
             ))}
           </section>
@@ -308,16 +452,16 @@ function App() {
         {activeTab === 'community' && (
           <div>
             <section className="card">
-              <h2>📢 Publier une Alerte ou un Message</h2>
+              <h2>📢 Publier une Alerte</h2>
               <form onSubmit={handleAddPost} className="form-grid">
                 <input type="text" placeholder="Votre nom" value={newPost.author} onChange={(e) => setNewPost({...newPost, author: e.target.value})} required />
-                <textarea placeholder="Votre message ou alerte agricole..." value={newPost.message} onChange={(e) => setNewPost({...newPost, message: e.target.value})} required />
+                <textarea placeholder="Votre message ou alerte..." value={newPost.message} onChange={(e) => setNewPost({...newPost, message: e.target.value})} required />
                 <button type="submit" className="btn btn-primary">Publier</button>
               </form>
             </section>
 
             <section className="card">
-              <h2>💬 Fil d'Échange Communautaire</h2>
+              <h2>💬 Fil Communautaire</h2>
               {communityPosts.map((post) => (
                 <div key={post.id} className="item-card">
                   <div className="post-header">
