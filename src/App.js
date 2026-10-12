@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import './App.css';
 
-// Empecher le crash des icônes Leaflet
+// Fix icônes Leaflet
 try {
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
@@ -13,38 +13,14 @@ try {
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   });
 } catch (e) {
-  console.error("Erreur config Leaflet:", e);
+  console.warn("Leaflet setup warning:", e);
 }
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
-// Composant d'Erreur Sécurisé pour éviter les crashs complets
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  componentDidCatch(error, errorInfo) {
-    console.error("Erreur interceptée par ErrorBoundary:", error, errorInfo);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
-          <h3>Un problème est survenu lors de l'affichage de ce module.</h3>
-          <button className="btn btn-main" onClick={() => window.location.reload()}>Recharger l'application</button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-function MainApp() {
+export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home');
+  const [isReady, setIsReady] = useState(false);
 
   // Profil Utilisateur
   const [profile, setProfile] = useState({
@@ -55,10 +31,9 @@ function MainApp() {
     province: 'Barh El Gazel',
     avatar_url: ''
   });
-  const [savingProfile, setSavingProfile] = useState(false);
 
-  // Développeur & Feedback
-  const [devInfo, setDevInfo] = useState({
+  // Support / Développeur
+  const [devInfo] = useState({
     name: 'Moustapha Ali hamat',
     role: 'Développeur Full-Stack & Ingénieur Solutions Sahéliennes',
     email: 'moustapha.ali.hamat@example.com',
@@ -66,10 +41,11 @@ function MainApp() {
     whatsapp: '+23560646072',
     location: "N'Djamena / Moussoro, Tchad"
   });
+
   const [feedback, setFeedback] = useState({ subject: 'Problème technique', message: '' });
   const [sendingFeedback, setSendingFeedback] = useState(false);
 
-  // Etats AI
+  // IA
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [plantDiagnosis, setPlantDiagnosis] = useState('');
@@ -78,47 +54,57 @@ function MainApp() {
   const [transcription, setTranscription] = useState('');
   const [loadingAudio, setLoadingAudio] = useState(false);
 
-  // Etats Données
+  // Données
   const [parcels, setParcels] = useState([]);
   const [trainings, setTrainings] = useState([]);
   const [communityPosts, setCommunityPosts] = useState([]);
   const [weather, setWeather] = useState(null);
 
   // Formulaires
-  const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: '13.6405', lng: '16.4901' });
+  const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: 13.6405, lng: 16.4901 });
   const [newPost, setNewPost] = useState({ author: '', location: 'Moussoro', message: '' });
 
   useEffect(() => {
-    fetchProfile();
-    fetchDeveloperInfo();
-    fetchWeather();
-    fetchParcels();
-    fetchTrainings();
-    fetchCommunity();
+    // Chargement unique et sécurisé au montage
+    const loadData = async () => {
+      try {
+        const [wRes, pRes, tRes, cRes, profRes] = await Promise.allSettled([
+          fetch(`${API_BASE_URL}/weather`),
+          fetch(`${API_BASE_URL}/parcels`),
+          fetch(`${API_BASE_URL}/trainings`),
+          fetch(`${API_BASE_URL}/community`),
+          fetch(`${API_BASE_URL}/profile`)
+        ]);
+
+        if (wRes.status === 'fulfilled' && wRes.value.ok) setWeather(await wRes.value.json());
+        if (pRes.status === 'fulfilled' && pRes.value.ok) {
+          const pData = await pRes.value.json();
+          if (Array.isArray(pData)) setParcels(pData);
+        }
+        if (tRes.status === 'fulfilled' && tRes.value.ok) {
+          const tData = await tRes.value.json();
+          if (Array.isArray(tData)) setTrainings(tData);
+        }
+        if (cRes.status === 'fulfilled' && cRes.value.ok) {
+          const cData = await cRes.value.json();
+          if (Array.isArray(cData)) setCommunityPosts(cData);
+        }
+        if (profRes.status === 'fulfilled' && profRes.value.ok) {
+          const profData = await profRes.value.json();
+          if (profData && profData.full_name) setProfile(profData);
+        }
+      } catch (err) {
+        console.error("Erreur de synchronisation:", err);
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    loadData();
   }, []);
 
-  const fetchProfile = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/profile`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.full_name) setProfile(data);
-      }
-    } catch (e) { console.error("Erreur profile:", e); }
-  };
-
-  const fetchDeveloperInfo = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/developer`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.name) setDevInfo(data);
-      }
-    } catch (e) { console.error("Erreur devInfo:", e); }
-  };
-
   const handleSendFeedback = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     if (!feedback.message) return alert("Veuillez saisir votre message");
     setSendingFeedback(true);
     try {
@@ -136,13 +122,15 @@ function MainApp() {
         alert("Merci ! Votre message a été transmis au développeur.");
         setFeedback({ subject: 'Problème technique', message: '' });
       }
-    } catch (e) { console.error(e); }
-    finally { setSendingFeedback(false); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSendingFeedback(false);
+    }
   };
 
   const handleSaveProfile = async (e) => {
-    if (e) e.preventDefault();
-    setSavingProfile(true);
+    e.preventDefault();
     try {
       const res = await fetch(`${API_BASE_URL}/profile`, {
         method: 'POST',
@@ -150,8 +138,9 @@ function MainApp() {
         body: JSON.stringify(profile)
       });
       if (res.ok) alert("Profil mis à jour avec succès !");
-    } catch (e) { console.error(e); }
-    finally { setSavingProfile(false); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleAvatarUpload = async (e) => {
@@ -166,54 +155,16 @@ function MainApp() {
       });
       const data = await res.json();
       if (res.ok && data.avatar_url) {
-        setProfile((prev) => ({ ...prev, avatar_url: data.avatar_url }));
+        setProfile(prev => ({ ...prev, avatar_url: data.avatar_url }));
         alert("Photo de profil mise à jour !");
       }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchWeather = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/weather`);
-      if (res.ok) {
-        const data = await res.json();
-        setWeather(data);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchParcels = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/parcels`);
-      if (res.ok) {
-        const data = await res.json();
-        setParcels(Array.isArray(data) ? data : []);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchTrainings = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/trainings`);
-      if (res.ok) {
-        const data = await res.json();
-        setTrainings(Array.isArray(data) ? data : []);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchCommunity = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/community`);
-      if (res.ok) {
-        const data = await res.json();
-        setCommunityPosts(Array.isArray(data) ? data : []);
-      }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleAddParcel = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     if (!newParcel.name || !newParcel.area_ha) return alert("Remplissez les champs requis");
     try {
       const res = await fetch(`${API_BASE_URL}/parcels`, {
@@ -227,15 +178,18 @@ function MainApp() {
         })
       });
       if (res.ok) {
-        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: profile.city || 'Moussoro', lat: '13.6405', lng: '16.4901' });
-        fetchParcels();
+        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: profile.city || 'Moussoro', lat: 13.6405, lng: 16.4901 });
+        const updated = await fetch(`${API_BASE_URL}/parcels`);
+        if (updated.ok) setParcels(await updated.json());
         alert("Parcelle enregistrée avec succès !");
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleAddPost = async (e) => {
-    if (e) e.preventDefault();
+    e.preventDefault();
     if (!newPost.message) return alert("Remplissez le message");
     try {
       const res = await fetch(`${API_BASE_URL}/community`, {
@@ -249,9 +203,12 @@ function MainApp() {
       });
       if (res.ok) {
         setNewPost({ author: '', location: '', message: '' });
-        fetchCommunity();
+        const updated = await fetch(`${API_BASE_URL}/community`);
+        if (updated.ok) setCommunityPosts(await updated.json());
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleAnalyzePlant = async () => {
@@ -264,8 +221,11 @@ function MainApp() {
       const response = await fetch(`${API_BASE_URL}/ai/analyze-plant-image`, { method: 'POST', body: formData });
       const data = await response.json();
       setPlantDiagnosis(response.ok ? data.diagnosis : `Erreur : ${data.detail || "Problème d'analyse"}`);
-    } catch (error) { setPlantDiagnosis(`Erreur : ${error.message}`); }
-    finally { setLoadingImage(false); }
+    } catch (error) {
+      setPlantDiagnosis(`Erreur : ${error.message}`);
+    } finally {
+      setLoadingImage(false);
+    }
   };
 
   const handleTranscribeAudio = async () => {
@@ -278,13 +238,27 @@ function MainApp() {
       const response = await fetch(`${API_BASE_URL}/ai/voice-to-text`, { method: 'POST', body: formData });
       const data = await response.json();
       setTranscription(response.ok ? data.text : `Erreur : ${data.detail || "Problème de transcription"}`);
-    } catch (error) { setTranscription(`Erreur : ${error.message}`); }
-    finally { setLoadingAudio(false); }
+    } catch (error) {
+      setTranscription(`Erreur : ${error.message}`);
+    } finally {
+      setLoadingAudio(false);
+    }
   };
+
+  if (!isReady) {
+    return (
+      <div className="app-viewport" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <h2>🌱 Tumaï Green Sahel</h2>
+          <p>Chargement de l'interface...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-viewport">
-      {/* En-tête Mobile */}
+      {/* En-tête */}
       <header className="app-bar">
         <div className="brand">
           <span className="brand-icon">🌱</span>
@@ -306,12 +280,10 @@ function MainApp() {
         )}
       </header>
 
-      {/* Contenu de la Page */}
+      {/* Corps */}
       <main className="app-body">
-        {/* PAGE D'ACCUEIL / DASHBOARD */}
         {currentScreen === 'home' && (
           <div className="screen-fade">
-            {/* Widget Météo Rapide */}
             {weather && (
               <div className="weather-widget" onClick={() => setCurrentScreen('weather')}>
                 <div className="weather-main">
@@ -327,7 +299,6 @@ function MainApp() {
 
             <h2 className="section-heading">Services & Options</h2>
 
-            {/* Grille de Cartes Modernes */}
             <div className="action-grid">
               <div className="action-card card-ia" onClick={() => setCurrentScreen('ia')}>
                 <div className="card-icon">🤖</div>
@@ -380,7 +351,6 @@ function MainApp() {
           </div>
         )}
 
-        {/* ÉCRAN CONTACT DÉVELOPPEUR */}
         {currentScreen === 'developer' && (
           <div className="screen-fade">
             <section className="module-section align-center">
@@ -429,7 +399,6 @@ function MainApp() {
           </div>
         )}
 
-        {/* ÉCRAN PROFIL UTILISATEUR */}
         {currentScreen === 'profile' && (
           <div className="screen-fade">
             <section className="module-section align-center">
@@ -468,15 +437,14 @@ function MainApp() {
                   <label className="input-label">Province / Région</label>
                   <input type="text" value={profile.province} onChange={(e) => setProfile({...profile, province: e.target.value})} />
                 </div>
-                <button type="submit" className="btn btn-main" disabled={savingProfile}>
-                  {savingProfile ? "Enregistrement..." : "💾 Enregistrer le Profil"}
+                <button type="submit" className="btn btn-main">
+                  💾 Enregistrer le Profil
                 </button>
               </form>
             </section>
           </div>
         )}
 
-        {/* ÉCRAN DIAGNOSTIC IA */}
         {currentScreen === 'ia' && (
           <div className="screen-fade">
             <section className="module-section">
@@ -510,36 +478,32 @@ function MainApp() {
           </div>
         )}
 
-        {/* ÉCRAN CARTOGRAPHIE */}
         {currentScreen === 'map' && (
           <div className="screen-fade">
             <section className="module-section">
               <h2>🗺️ Carte GPS Satellite</h2>
               <p>Visualisation des parcelles géolocalisées à Moussoro / Barh El Gazel</p>
               <div className="map-container-box">
-                {typeof window !== 'undefined' && (
-                  <MapContainer center={[13.6405, 16.4901]} zoom={13} scrollWheelZoom={false} style={{ height: "350px", width: "100%", borderRadius: "12px" }}>
-                    <TileLayer
-                      attribution='&copy; OpenStreetMap'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    {parcels.map((p) => (
-                      <Marker key={p.id} position={[p.lat || 13.6405, p.lng || 16.4901]}>
-                        <Popup>
-                          <strong>{p.name}</strong><br />
-                          Culture: {p.crop_type}<br />
-                          Superficie: {p.area_ha} ha
-                        </Popup>
-                      </Marker>
-                    ))}
-                  </MapContainer>
-                )}
+                <MapContainer center={[13.6405, 16.4901]} zoom={13} scrollWheelZoom={false} style={{ height: "350px", width: "100%", borderRadius: "12px" }}>
+                  <TileLayer
+                    attribution='&copy; OpenStreetMap'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  {parcels.map((p) => (
+                    <Marker key={p.id} position={[p.lat || 13.6405, p.lng || 16.4901]}>
+                      <Popup>
+                        <strong>{p.name}</strong><br />
+                        Culture: {p.crop_type}<br />
+                        Superficie: {p.area_ha} ha
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
               </div>
             </section>
           </div>
         )}
 
-        {/* ÉCRAN MÉTÉO */}
         {currentScreen === 'weather' && weather && (
           <div className="screen-fade">
             <section className="module-section">
@@ -554,8 +518,8 @@ function MainApp() {
 
             <section className="module-section" style={{ marginTop: '15px' }}>
               <h2>⚠️ Alertes Agricoles</h2>
-              {weather.alerts.map((alert) => (
-                <div key={alert.id} className={`alert-box alert-${alert.severity.toLowerCase()}`}>
+              {weather.alerts && weather.alerts.map((alert) => (
+                <div key={alert.id} className={`alert-box alert-${(alert.severity || '').toLowerCase()}`}>
                   <strong>{alert.type} ({alert.severity})</strong>
                   <p>{alert.message}</p>
                 </div>
@@ -564,7 +528,6 @@ function MainApp() {
           </div>
         )}
 
-        {/* ÉCRAN PARCELLES */}
         {currentScreen === 'parcels' && (
           <div className="screen-fade">
             <section className="module-section">
@@ -602,7 +565,6 @@ function MainApp() {
           </div>
         )}
 
-        {/* ÉCRAN FORMATIONS */}
         {currentScreen === 'trainings' && (
           <div className="screen-fade">
             <section className="module-section">
@@ -619,7 +581,6 @@ function MainApp() {
           </div>
         )}
 
-        {/* ÉCRAN COMMUNAUTÉ */}
         {currentScreen === 'community' && (
           <div className="screen-fade">
             <section className="module-section">
@@ -646,7 +607,7 @@ function MainApp() {
         )}
       </main>
 
-      {/* Barre de Navigation Inférieure Mobile */}
+      {/* Barre de Navigation */}
       <nav className="bottom-nav">
         <button className={currentScreen === 'home' ? 'nav-item active' : 'nav-item'} onClick={() => setCurrentScreen('home')}>
           <span>🏠</span>
@@ -670,13 +631,5 @@ function MainApp() {
         </button>
       </nav>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <ErrorBoundary>
-      <MainApp />
-    </ErrorBoundary>
   );
 }
