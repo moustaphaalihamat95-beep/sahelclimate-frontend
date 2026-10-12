@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import './App.css';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
+
 function App() {
   const [user, setUser] = useState(() => {
     try {
@@ -11,32 +13,97 @@ function App() {
     }
   });
 
-  const [nameInput, setNameInput] = useState('Moustapha Ali Hamat');
-  const [phoneInput, setPhoneInput] = useState('+23560646072');
-  const [cityInput, setCityInput] = useState('Moussoro');
-  const [addressInput, setAddressInput] = useState('Quartier Ouest');
-  const [codeInput, setCodeInput] = useState('123456');
-  
-  const [step, setStep] = useState('phone');
+  // Formulaire d'inscription
+  const [fullName, setFullName] = useState('Moustapha Ali Hamat');
+  const [phone, setPhone] = useState('+23560646072');
+  const [city, setCity] = useState('Moussoro');
+  const [address, setAddress] = useState('Quartier Ouest'); // Optionnel
+  const [email, setEmail] = useState(''); // Optionnel
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [channel, setChannel] = useState('sms'); // 'sms' ou 'email'
+
+  // Vérification
+  const [step, setStep] = useState('register'); // 'register', 'verify'
+  const [codeInput, setCodeInput] = useState('');
+  const [generatedCode, setGeneratedCode] = useState('123456');
+  const [targetDestination, setTargetDestination] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+
   const [activeTab, setActiveTab] = useState('weather');
 
-  const handleAuthSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    setStep('code');
+    if (password !== confirmPassword) {
+      return setErrorMsg("Les mots de passe ne correspondent pas !");
+    }
+    if (channel === 'email' && !email) {
+      return setErrorMsg("Veuillez remplir l'adresse e-mail pour recevoir le code par E-mail.");
+    }
+    
+    setLoading(true);
+    setErrorMsg('');
+
+    const payload = {
+      full_name: fullName,
+      phone_number: phone,
+      city: city,
+      address: address,
+      email: email,
+      password: password,
+      delivery_channel: channel
+    };
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      const receivedCode = data.verification_code || "123456";
+      setGeneratedCode(receivedCode);
+      setCodeInput(receivedCode);
+      setTargetDestination(data.target || (channel === 'sms' ? phone : email));
+      setStep('verify');
+    } catch (err) {
+      setGeneratedCode("123456");
+      setCodeInput("123456");
+      setTargetDestination(channel === 'sms' ? phone : (email || phone));
+      setStep('verify');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerifySubmit = (e) => {
+  const handleVerifySubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
     const newUser = {
-      full_name: nameInput || "Agriculteur Sahel",
-      phone_number: phoneInput || "+23560000000",
-      city: cityInput || "Moussoro",
-      address: addressInput || "Quartier Centre"
+      full_name: fullName,
+      phone_number: phone,
+      city: city,
+      address: address,
+      email: email
     };
+
+    try {
+      await fetch(`${API_BASE_URL}/auth/confirm-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: targetDestination, code: codeInput })
+      });
+    } catch (err) {}
+
     try {
       localStorage.setItem('sahel_user', JSON.stringify(newUser));
     } catch (err) {}
+
     setUser(newUser);
+    setLoading(false);
   };
 
   const handleLogout = () => {
@@ -44,48 +111,85 @@ function App() {
       localStorage.removeItem('sahel_user');
     } catch (e) {}
     setUser(null);
-    setStep('phone');
+    setStep('register');
   };
 
-  // ÉCRAN 1 : CONNEXION / INSCRIPTION
+  // ÉCRAN 1 : FORMULAIRE D'INSCRIPTION & VALIDATION
   if (!user) {
     return (
-      <div style={{ padding: '20px', maxWidth: '500px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <div style={{ padding: '20px', maxWidth: '520px', margin: '0 auto', fontFamily: 'sans-serif' }}>
         <div style={{ background: '#2e7d32', color: '#fff', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
           <h1 style={{ margin: 0, fontSize: '1.5rem' }}>🌾 SahelClimate-AI</h1>
-          <p style={{ margin: '5px 0 0 0', fontSize: '0.9rem' }}>Plateforme Agricole du Sahel</p>
+          <p style={{ margin: '5px 0 0 0', fontSize: '0.9rem' }}>Création de compte & Authentification</p>
         </div>
 
         <div style={{ background: '#fff', border: '1px solid #ddd', borderRadius: '8px', padding: '20px', marginTop: '20px' }}>
-          {step === 'phone' ? (
-            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h2>📝 Inscription / Identification</h2>
-              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Nom complet *</label>
-              <input type="text" value={nameInput} onChange={(e) => setNameInput(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
-              
-              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Numéro de Téléphone *</label>
-              <input type="text" value={phoneInput} onChange={(e) => setPhoneInput(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
-              
-              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Ville / Localité *</label>
-              <input type="text" value={cityInput} onChange={(e) => setCityInput(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
-              
-              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Adresse / Quartier *</label>
-              <input type="text" value={addressInput} onChange={(e) => setAddressInput(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+          {step === 'register' ? (
+            <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <h2>📝 Créer un Compte</h2>
 
-              <button type="submit" style={{ background: '#2e7d32', color: '#fff', padding: '12px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}>
-                Obtenir le Code de Validation
+              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Nom complet *</label>
+              <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+
+              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Numéro de téléphone *</label>
+              <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+
+              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Ville / Localité *</label>
+              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+
+              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Adresse complète / Quartier (Optionnel)</label>
+              <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+
+              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Adresse e-mail (Optionnel)</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+
+              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Mot de passe *</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+
+              <label style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Confirmer le mot de passe *</label>
+              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+
+              <div style={{ marginTop: '10px', background: '#f5f5f5', padding: '12px', borderRadius: '6px' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
+                  📩 Choisir le mode de réception du code :
+                </label>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  <label style={{ cursor: 'pointer', fontSize: '0.9rem' }}>
+                    <input type="radio" name="channel" value="sms" checked={channel === 'sms'} onChange={() => setChannel('sms')} /> 📱 SMS (Téléphone)
+                  </label>
+                  <label style={{ cursor: 'pointer', fontSize: '0.9rem' }}>
+                    <input type="radio" name="channel" value="email" checked={channel === 'email'} onChange={() => setChannel('email')} /> 📧 E-mail
+                  </label>
+                </div>
+              </div>
+
+              {errorMsg && <p style={{ color: '#d32f2f', fontSize: '0.85rem', margin: 0 }}>{errorMsg}</p>}
+
+              <button type="submit" disabled={loading} style={{ background: '#2e7d32', color: '#fff', padding: '12px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}>
+                {loading ? "Envoi..." : "S'inscrire / Recevoir le Code"}
               </button>
             </form>
           ) : (
             <form onSubmit={handleVerifySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <h2>🔑 Saisir le Code SMS</h2>
-              <div style={{ background: '#e8f5e9', color: '#2e7d32', padding: '10px', borderRadius: '4px', fontSize: '0.9rem' }}>
-                💡 Code de test par défaut : <strong>123456</strong>
+              <h2>🔑 Saisir le Code de Validation</h2>
+              <p style={{ fontSize: '0.9rem', color: '#555', margin: 0 }}>
+                Code envoyé par <strong>{channel.toUpperCase()}</strong> à : <strong>{targetDestination}</strong>
+              </p>
+
+              <div style={{ background: '#e8f5e9', color: '#2e7d32', padding: '12px', borderRadius: '6px', fontSize: '0.9rem' }}>
+                💡 Code de validation généré : <strong style={{ fontSize: '1.2rem' }}>{generatedCode}</strong>
               </div>
-              <input type="text" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} required style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '1.2rem', textAlign: 'center' }} />
-              
-              <button type="submit" style={{ background: '#2e7d32', color: '#fff', padding: '12px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
-                Valider et Accéder au Tableau de Bord
+
+              <input 
+                type="text" 
+                value={codeInput} 
+                onChange={(e) => setCodeInput(e.target.value)} 
+                required 
+                style={{ padding: '12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '1.3rem', textAlign: 'center', letterSpacing: '4px' }} 
+              />
+
+              <button type="submit" disabled={loading} style={{ background: '#2e7d32', color: '#fff', padding: '12px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {loading ? "Validation..." : "Valider mon Compte"}
               </button>
             </form>
           )}
