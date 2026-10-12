@@ -1,19 +1,5 @@
 import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 import './App.css';
-
-try {
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  });
-} catch (e) {
-  console.warn("Leaflet setup warning:", e);
-}
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('home');
@@ -81,7 +67,7 @@ export default function App() {
       alert("Message transmis au développeur avec succès !");
       setFeedback({ subject: 'Problème technique', message: '' });
       setSendingFeedback(false);
-    }, 600);
+    }, 500);
   };
 
   const handleSaveProfile = (e) => {
@@ -123,7 +109,7 @@ export default function App() {
     setTimeout(() => {
       setPlantDiagnosis("Analyse : Plante saine avec un bon développement. Veillez à maintenir une irrigation régulière le matin.");
       setLoadingImage(false);
-    }, 1200);
+    }, 1000);
   };
 
   const handleTranscribeAudio = () => {
@@ -132,7 +118,7 @@ export default function App() {
     setTimeout(() => {
       setTranscription("Transcription : Comment optimiser l'arrosage de mon champ de sésame ?");
       setLoadingAudio(false);
-    }, 1200);
+    }, 1000);
   };
 
   return (
@@ -347,15 +333,15 @@ export default function App() {
           <div className="screen-fade">
             <section className="module-section">
               <h2>🗺️ Carte GPS Satellite</h2>
-              <div className="map-container-box">
-                <MapContainer center={[13.6405, 16.4901]} zoom={13} scrollWheelZoom={false} style={{ height: "350px", width: "100%", borderRadius: "12px" }}>
-                  <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  {parcels.map((p) => (
-                    <Marker key={p.id} position={[p.lat || 13.6405, p.lng || 16.4901]}>
-                      <Popup><strong>{p.name}</strong><br />{p.crop_type} ({p.area_ha} ha)</Popup>
-                    </Marker>
-                  ))}
-                </MapContainer>
+              <p>Parcelles géolocalisées à Moussoro / Barh El Gazel</p>
+              <div className="map-placeholder-box" style={{ background: '#e8f5e9', padding: '30px', textAlign: 'center', borderRadius: '12px', marginTop: '10px' }}>
+                <p style={{ fontSize: '1.2rem', color: '#1b5e20', fontWeight: 'bold' }}>📍 Vue Satellite Active</p>
+                {parcels.map((p) => (
+                  <div key={p.id} style={{ background: 'white', padding: '10px', borderRadius: '8px', marginTop: '8px' }}>
+                    <strong>{p.name}</strong><br />
+                    Coordonnées GPS : {p.lat}, {p.lng}
+                  </div>
+                ))}
               </div>
             </section>
           </div>
@@ -426,7 +412,7 @@ export default function App() {
               </form>
             </section>
 
-            <section className="module-section" style={{ marginTop: '20px' }}>
+            <section className="module-section" style={{ marginTop: '20px' %>
               <h2>💬 Fil d'Actualité</h2>
               {communityPosts.map((post) => (
                 <div key={post.id} className="list-item">
