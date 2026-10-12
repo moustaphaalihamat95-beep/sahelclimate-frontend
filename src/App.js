@@ -14,9 +14,12 @@ L.Icon.Default.mergeOptions({
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
 function App() {
-  const [user, setUser] = useState(null);
+  // Récupération de l'utilisateur depuis le localStorage pour éviter la perte de session au rechargement
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('sahel_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   
-  // Formulaire d'inscription
   const [nameInput, setNameInput] = useState('Moustapha Ali Hamat');
   const [phoneInput, setPhoneInput] = useState('+23560646072');
   const [cityInput, setCityInput] = useState('Moussoro');
@@ -25,7 +28,7 @@ function App() {
   
   const [codeInput, setCodeInput] = useState('123456');
   const [demoCode, setDemoCode] = useState('123456');
-  const [step, setStep] = useState('phone'); // 'phone', 'code'
+  const [step, setStep] = useState('phone');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -112,7 +115,6 @@ function App() {
       setCodeInput(codeSent);
       setStep('code');
     } catch (err) {
-      // Sécurité : passage à l'étape suivante même en cas de problème de réseau
       setDemoCode("123456");
       setCodeInput("123456");
       setStep('code');
@@ -131,24 +133,34 @@ function App() {
         body: JSON.stringify({ phone_number: phoneInput, code: codeInput || "123456" })
       });
       const data = await res.json();
-      setUser(data.user || {
+      const loggedUser = data.user || {
         full_name: nameInput,
         phone_number: phoneInput,
         city: cityInput,
         address: addressInput,
         email: emailInput
-      });
+      };
+      setUser(loggedUser);
+      localStorage.setItem('sahel_user', JSON.stringify(loggedUser));
     } catch (err) {
-      setUser({
+      const loggedUser = {
         full_name: nameInput,
         phone_number: phoneInput,
         city: cityInput,
         address: addressInput,
         email: emailInput
-      });
+      };
+      setUser(loggedUser);
+      localStorage.setItem('sahel_user', JSON.stringify(loggedUser));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('sahel_user');
+    setStep('phone');
   };
 
   const handleAddParcel = async (e) => {
@@ -299,7 +311,7 @@ function App() {
         <h1>🌾 SahelClimate-AI</h1>
         <p>
           👤 <strong>{user.full_name}</strong> ({user.city}) | 
-          <button onClick={() => { setStep('phone'); setUser(null); }} style={{ background: 'none', border: 'none', color: '#d32f2f', cursor: 'pointer', fontWeight: 'bold', marginLeft: '5px' }}>Déconnexion</button>
+          <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: '#d32f2f', cursor: 'pointer', fontWeight: 'bold', marginLeft: '5px' }}>Déconnexion</button>
         </p>
       </header>
 
