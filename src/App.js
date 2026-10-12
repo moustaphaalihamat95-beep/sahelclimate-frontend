@@ -16,6 +16,29 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.
 function App() {
   const [currentScreen, setCurrentScreen] = useState('home');
 
+  // Profil Utilisateur
+  const [profile, setProfile] = useState({
+    full_name: 'Moustapha Ali hamat',
+    email: 'moustapha.ali.hamat@example.com',
+    phone: '+23560646072',
+    city: 'Moussoro',
+    province: 'Barh El Gazel',
+    avatar_url: ''
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Développeur & Feedback
+  const [devInfo, setDevInfo] = useState({
+    name: 'Moustapha Ali hamat',
+    role: 'Développeur Full-Stack & Ingénieur Solutions Sahéliennes',
+    email: 'moustapha.ali.hamat@example.com',
+    phone: '+23560646072',
+    whatsapp: '+23560646072',
+    location: "N'Djamena / Moussoro, Tchad"
+  });
+  const [feedback, setFeedback] = useState({ subject: 'Problème technique', message: '' });
+  const [sendingFeedback, setSendingFeedback] = useState(false);
+
   // Etats AI
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -36,11 +59,84 @@ function App() {
   const [newPost, setNewPost] = useState({ author: '', location: 'Moussoro', message: '' });
 
   useEffect(() => {
+    fetchProfile();
+    fetchDeveloperInfo();
     fetchWeather();
     fetchParcels();
     fetchTrainings();
     fetchCommunity();
   }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile`);
+      const data = await res.json();
+      if (data) setProfile(data);
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchDeveloperInfo = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/developer`);
+      const data = await res.json();
+      if (data) setDevInfo(data);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleSendFeedback = async (e) => {
+    e.preventDefault();
+    if (!feedback.message) return alert("Veuillez saisir votre message");
+    setSendingFeedback(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_name: profile.full_name || 'Anonyme',
+          contact: profile.phone || profile.email || 'Non précisé',
+          subject: feedback.subject,
+          message: feedback.message
+        })
+      });
+      if (res.ok) {
+        alert("Merci ! Votre message a été transmis au développeur.");
+        setFeedback({ subject: 'Problème technique', message: '' });
+      }
+    } catch (e) { console.error(e); }
+    finally { setSendingFeedback(false); }
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profile)
+      });
+      if (res.ok) alert("Profil mis à jour avec succès !");
+    } catch (e) { console.error(e); }
+    finally { setSavingProfile(false); }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile/avatar`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok && data.avatar_url) {
+        setProfile({ ...profile, avatar_url: data.avatar_url });
+        alert("Photo de profil mise à jour !");
+      }
+    } catch (e) { console.error(e); }
+  };
 
   const fetchWeather = async () => {
     try {
@@ -89,7 +185,7 @@ function App() {
         })
       });
       if (res.ok) {
-        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: '13.6405', lng: '16.4901' });
+        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: profile.city || 'Moussoro', lat: '13.6405', lng: '16.4901' });
         fetchParcels();
         alert("Parcelle enregistrée avec succès !");
       }
@@ -98,15 +194,19 @@ function App() {
 
   const handleAddPost = async (e) => {
     e.preventDefault();
-    if (!newPost.author || !newPost.message) return alert("Remplissez les champs requis");
+    if (!newPost.message) return alert("Remplissez le message");
     try {
       const res = await fetch(`${API_BASE_URL}/community`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPost)
+        body: JSON.stringify({
+          author: profile.full_name || 'Agriculteur',
+          location: profile.city || 'Moussoro',
+          message: newPost.message
+        })
       });
       if (res.ok) {
-        setNewPost({ author: '', location: 'Moussoro', message: '' });
+        setNewPost({ author: '', location: '', message: '' });
         fetchCommunity();
       }
     } catch (e) { console.error(e); }
@@ -142,17 +242,25 @@ function App() {
 
   return (
     <div className="app-viewport">
-      {/* En-tête Style Mobile App */}
+      {/* En-tête Mobile */}
       <header className="app-bar">
         <div className="brand">
           <span className="brand-icon">🌱</span>
           <div>
             <h1 className="brand-title">Tumaï Green Sahel</h1>
-            <p className="brand-sub">Moussoro, Barh El Gazel</p>
+            <p className="brand-sub">{profile.city || 'Moussoro'}, {profile.province || 'Barh El Gazel'}</p>
           </div>
         </div>
-        {currentScreen !== 'home' && (
+        {currentScreen !== 'home' ? (
           <button className="back-btn" onClick={() => setCurrentScreen('home')}>⬅️ Retour</button>
+        ) : (
+          <div className="profile-badge-header" onClick={() => setCurrentScreen('profile')}>
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt="Avatar" className="header-avatar" />
+            ) : (
+              <span className="avatar-placeholder">👤</span>
+            )}
+          </div>
         )}
       </header>
 
@@ -214,7 +322,115 @@ function App() {
                 <h3>Communauté</h3>
                 <p>Fil d'échange local</p>
               </div>
+
+              <div className="action-card card-profile" onClick={() => setCurrentScreen('profile')}>
+                <div className="card-icon">👤</div>
+                <h3>Mon Profil</h3>
+                <p>Informations & Photo</p>
+              </div>
+
+              <div className="action-card card-developer" onClick={() => setCurrentScreen('developer')}>
+                <div className="card-icon">👨‍💻</div>
+                <h3>Contact Développeur</h3>
+                <p>Aide, Support & Options</p>
+              </div>
             </div>
+          </div>
+        )}
+
+        {/* ÉCRAN CONTACT DÉVELOPPEUR */}
+        {currentScreen === 'developer' && (
+          <div className="screen-fade">
+            <section className="module-section align-center">
+              <h2>👨‍💻 Développeur & Support Technique</h2>
+              <div className="dev-card">
+                <h3>{devInfo.name}</h3>
+                <p className="dev-role">{devInfo.role}</p>
+                <p className="dev-location">📍 {devInfo.location}</p>
+              </div>
+
+              <div className="contact-links-grid">
+                <a href={`tel:${devInfo.phone}`} className="contact-btn phone-btn">
+                  📞 Appeler ({devInfo.phone})
+                </a>
+                <a href={`https://wa.me/${devInfo.whatsapp.replace('+', '')}`} target="_blank" rel="noreferrer" className="contact-btn whatsapp-btn">
+                  💬 Discuter sur WhatsApp
+                </a>
+                <a href={`mailto:${devInfo.email}`} className="contact-btn email-btn">
+                  ✉️ Envoyer un E-mail
+                </a>
+              </div>
+            </section>
+
+            <section className="module-section" style={{ marginTop: '15px' }}>
+              <h2>💡 Demande de Fonctionnalité ou Signalement</h2>
+              <p>Une idée pour améliorer l'application ou un problème technique ? Écrivez-moi directement :</p>
+              <form onSubmit={handleSendFeedback} className="form-stack">
+                <div>
+                  <label className="input-label">Sujet de votre demande</label>
+                  <select value={feedback.subject} onChange={(e) => setFeedback({...feedback, subject: e.target.value})}>
+                    <option value="Demande de nouvelle fonctionnalité">Demande de nouvelle fonctionnalité</option>
+                    <option value="Problème technique / Bug">Problème technique / Bug</option>
+                    <option value="Question / Aide">Question / Aide</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">Votre Message</label>
+                  <textarea rows="4" placeholder="Décrivez la fonctionnalité souhaitée ou le problème rencontré..." value={feedback.message} onChange={(e) => setFeedback({...feedback, message: e.target.value})} required />
+                </div>
+                <button type="submit" className="btn btn-main" disabled={sendingFeedback}>
+                  {sendingFeedback ? "Envoi en cours..." : "🚀 Envoyer au Développeur"}
+                </button>
+              </form>
+            </section>
+          </div>
+        )}
+
+        {/* ÉCRAN PROFIL UTILISATEUR */}
+        {currentScreen === 'profile' && (
+          <div className="screen-fade">
+            <section className="module-section align-center">
+              <h2>👤 Profil Utilisateur</h2>
+              <div className="avatar-upload-container">
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Photo de Profil" className="avatar-preview" />
+                ) : (
+                  <div className="avatar-circle-default">👤</div>
+                )}
+                <label htmlFor="avatarInput" className="btn-avatar-edit">📷 Modifier la photo</label>
+                <input type="file" id="avatarInput" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
+              </div>
+            </section>
+
+            <section className="module-section" style={{ marginTop: '15px' }}>
+              <h2>📝 Informations Personnelles</h2>
+              <form onSubmit={handleSaveProfile} className="form-stack">
+                <div>
+                  <label className="input-label">Nom et Prénom</label>
+                  <input type="text" value={profile.full_name} onChange={(e) => setProfile({...profile, full_name: e.target.value})} required />
+                </div>
+                <div>
+                  <label className="input-label">Adresse E-mail</label>
+                  <input type="email" value={profile.email} onChange={(e) => setProfile({...profile, email: e.target.value})} placeholder="exemple@mail.com" />
+                </div>
+                <div>
+                  <label className="input-label">Numéro de Téléphone</label>
+                  <input type="text" value={profile.phone} onChange={(e) => setProfile({...profile, phone: e.target.value})} required />
+                </div>
+                <div>
+                  <label className="input-label">Ville / Commune</label>
+                  <input type="text" value={profile.city} onChange={(e) => setProfile({...profile, city: e.target.value})} required />
+                </div>
+                <div>
+                  <label className="input-label">Province / Région</label>
+                  <input type="text" value={profile.province} onChange={(e) => setProfile({...profile, province: e.target.value})} />
+                </div>
+                <button type="submit" className="btn btn-main" disabled={savingProfile}>
+                  {savingProfile ? "Enregistrement..." : "💾 Enregistrer le Profil"}
+                </button>
+              </form>
+            </section>
           </div>
         )}
 
@@ -365,9 +581,8 @@ function App() {
             <section className="module-section">
               <h2>📢 Poster un Message ou Alerte</h2>
               <form onSubmit={handleAddPost} className="form-stack">
-                <input type="text" placeholder="Votre Nom" value={newPost.author} onChange={(e) => setNewPost({...newPost, author: e.target.value})} required />
                 <textarea placeholder="Partagez un conseil ou avertissement..." value={newPost.message} onChange={(e) => setNewPost({...newPost, message: e.target.value})} required />
-                <button type="submit" className="btn btn-main">Publier</button>
+                <button type="submit" className="btn btn-main">Publier sous le nom de {profile.full_name}</button>
               </form>
             </section>
 
@@ -387,7 +602,7 @@ function App() {
         )}
       </main>
 
-      {/* Barre de Navigation Inférieure (Bottom Navigation Bar Mobile) */}
+      {/* Barre de Navigation Inférieure Mobile */}
       <nav className="bottom-nav">
         <button className={currentScreen === 'home' ? 'nav-item active' : 'nav-item'} onClick={() => setCurrentScreen('home')}>
           <span>🏠</span>
@@ -404,6 +619,10 @@ function App() {
         <button className={currentScreen === 'community' ? 'nav-item active' : 'nav-item'} onClick={() => setCurrentScreen('community')}>
           <span>💬</span>
           <span>Communauté</span>
+        </button>
+        <button className={currentScreen === 'developer' ? 'nav-item active' : 'nav-item'} onClick={() => setCurrentScreen('developer')}>
+          <span>👨‍💻</span>
+          <span>Support</span>
         </button>
       </nav>
     </div>
