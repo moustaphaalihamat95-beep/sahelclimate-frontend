@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import './App.css';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
+
 export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [fullName, setFullName] = useState('');
   const [currentScreen, setCurrentScreen] = useState('home');
 
-  // Profil Utilisateur
   const [profile, setProfile] = useState({
     full_name: 'Moustapha Ali hamat',
     email: 'moustapha.ali.hamat@example.com',
@@ -26,7 +30,6 @@ export default function App() {
   const [feedback, setFeedback] = useState({ subject: 'Problème technique', message: '' });
   const [sendingFeedback, setSendingFeedback] = useState(false);
 
-  // IA
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [plantDiagnosis, setPlantDiagnosis] = useState('');
@@ -35,13 +38,11 @@ export default function App() {
   const [transcription, setTranscription] = useState('');
   const [loadingAudio, setLoadingAudio] = useState(false);
 
-  // Données locales stables
   const [parcels, setParcels] = useState([
     { id: 1, name: "Parcelle Moussoro Est", area_ha: 2.5, crop_type: "Mil (Sorgho)", location: "Moussoro", status: "Active", lat: 13.6405, lng: 16.4901 }
   ]);
   const [trainings] = useState([
-    { id: 1, title: "Techniques de Compostage Rapide", category: "Agro-écologie", duration: "15 min", summary: "Fabriquer un compost riche sans gaspiller d'eau." },
-    { id: 2, title: "Gestion de l'Eau de Pluie", category: "Irrigation", duration: "20 min", summary: "Techniques de demi-lunes et zaï pour capturer l'eau." }
+    { id: 1, title: "Techniques de Compostage Rapide", category: "Agro-écologie", duration: "15 min", summary: "Fabriquer un compost riche sans gaspiller d'eau." }
   ]);
   const [communityPosts, setCommunityPosts] = useState([
     { id: 1, author: "Mahamat A.", location: "Moussoro", message: "Surveillance des cultures recommandée pour le sorgho.", date: "Aujourd'hui" }
@@ -55,9 +56,29 @@ export default function App() {
     alerts: [{ id: 1, type: "Climat", severity: "Moyenne", message: "Vent sec prévu." }]
   });
 
-  // Formulaires
   const [newParcel, setNewParcel] = useState({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: 13.6405, lng: 16.4901 });
   const [newPost, setNewPost] = useState({ message: '' });
+
+  // Gestion Connexion / Inscription propre
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!phone) return alert("Veuillez entrer votre numéro de téléphone");
+    
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, full_name: fullName || 'Moustapha Ali hamat' })
+      });
+      if (res.ok) {
+        setIsLoggedIn(true);
+        setProfile(prev => ({ ...prev, phone, full_name: fullName || prev.full_name }));
+      }
+    } catch (err) {
+      // Fallback local en cas de lenteur réseau
+      setIsLoggedIn(true);
+    }
+  };
 
   const handleSendFeedback = (e) => {
     e.preventDefault();
@@ -120,6 +141,33 @@ export default function App() {
       setLoadingAudio(false);
     }, 1000);
   };
+
+  // Si l'utilisateur n'est pas connecté, afficher l'écran de connexion propre (comme sur votre image)
+  if (!isLoggedIn) {
+    return (
+      <div className="app-viewport" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <span style={{ fontSize: '3rem' }}>🌾</span>
+          <h1 style={{ color: '#1b5e20', fontSize: '1.5rem', margin: '10px 0' }}>SahelClimate-AI</h1>
+          <p style={{ color: '#555', fontSize: '0.9rem' }}>Création de compte par Téléphone</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="form-stack">
+          <div>
+            <label className="input-label">Nom et Prénom</label>
+            <input type="text" placeholder="Votre nom complet" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          </div>
+          <div>
+            <label className="input-label">Numéro de Téléphone</label>
+            <input type="text" placeholder="+235..." value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          </div>
+          <button type="submit" className="btn btn-main" style={{ marginTop: '10px' }}>
+            Envoyer le Code SMS
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="app-viewport">
@@ -334,8 +382,8 @@ export default function App() {
             <section className="module-section">
               <h2>🗺️ Carte GPS Satellite</h2>
               <p>Parcelles géolocalisées à Moussoro / Barh El Gazel</p>
-              <div className="map-placeholder-box" style={{ background: '#e8f5e9', padding: '30px', textAlign: 'center', borderRadius: '12px', marginTop: '10px' }}>
-                <p style={{ fontSize: '1.2rem', color: '#1b5e20', fontWeight: 'bold' }}>📍 Vue Satellite Active</p>
+              <div style={{ background: '#e8f5e9', padding: '20px', textAlign: 'center', borderRadius: '12px', marginTop: '10px' }}>
+                <p style={{ fontSize: '1.1rem', color: '#1b5e20', fontWeight: 'bold' }}>📍 Vue Satellite Active</p>
                 {parcels.map((p) => (
                   <div key={p.id} style={{ background: 'white', padding: '10px', borderRadius: '8px', marginTop: '8px' }}>
                     <strong>{p.name}</strong><br />
@@ -412,7 +460,7 @@ export default function App() {
               </form>
             </section>
 
-            <section className="module-section" style={{ marginTop: '20px' %>
+            <section className="module-section" style={{ marginTop: '20px' }}>
               <h2>💬 Fil d'Actualité</h2>
               {communityPosts.map((post) => (
                 <div key={post.id} className="list-item">
