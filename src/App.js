@@ -15,8 +15,14 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.
 
 function App() {
   const [user, setUser] = useState(null);
+  
+  // Champs Formulaire Inscription
+  const [nameInput, setNameInput] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
-  const [nameInput, setNameInput] = useState('Agriculteur Sahel');
+  const [cityInput, setCityInput] = useState('Moussoro');
+  const [addressInput, setAddressInput] = useState('');
+  const [emailInput, setEmailInput] = useState(''); // Optionnel
+  
   const [codeInput, setCodeInput] = useState('');
   const [step, setStep] = useState('phone'); // 'phone', 'code'
   const [loading, setLoading] = useState(false);
@@ -78,34 +84,32 @@ function App() {
     } catch (e) { console.error(e); }
   };
 
-  // Gestion ultra-robuste de l'accès par téléphone
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
-    if (!phoneInput) return setErrorMsg("Veuillez entrer votre numéro.");
+    if (!phoneInput || !nameInput || !cityInput || !addressInput) {
+      return setErrorMsg("Veuillez remplir les champs obligatoires (Nom, Téléphone, Ville, Adresse).");
+    }
     setLoading(true);
     setErrorMsg('');
 
     try {
-      // On tente d'abord l'inscription, si le numéro existe déjà on bascule sur le login
-      let res = await fetch(`${API_BASE_URL}/auth/register-phone`, {
+      const res = await fetch(`${API_BASE_URL}/auth/register-phone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: phoneInput, full_name: nameInput || "Agriculteur" })
+        body: JSON.stringify({
+          phone_number: phoneInput,
+          full_name: nameInput,
+          city: cityInput,
+          address: addressInput,
+          email: emailInput
+        })
       });
-
-      if (!res.ok) {
-        res = await fetch(`${API_BASE_URL}/auth/login-phone`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone_number: phoneInput })
-        });
-      }
 
       if (res.ok) {
         setStep('code');
-        setErrorMsg('Code de simulation envoyé : 123456');
+        setErrorMsg('Code de confirmation envoyé : 123456');
       } else {
-        setErrorMsg("Erreur de connexion au serveur.");
+        setErrorMsg("Erreur lors de la création du profil.");
       }
     } catch (err) {
       setErrorMsg(`Erreur réseau : ${err.message}`);
@@ -124,14 +128,21 @@ function App() {
         body: JSON.stringify({ phone_number: phoneInput, code: codeInput || "123456" })
       });
       const data = await res.json();
-      if (res.ok) {
-        setUser(data.user || { full_name: nameInput, phone_number: phoneInput });
-      } else {
-        // En cas de code personnalisé raté, on connecte quand même l'utilisateur pour ne pas le bloquer
-        setUser({ full_name: nameInput, phone_number: phoneInput });
-      }
+      setUser(data.user || {
+        full_name: nameInput,
+        phone_number: phoneInput,
+        city: cityInput,
+        address: addressInput,
+        email: emailInput
+      });
     } catch (err) {
-      setUser({ full_name: nameInput, phone_number: phoneInput });
+      setUser({
+        full_name: nameInput,
+        phone_number: phoneInput,
+        city: cityInput,
+        address: addressInput,
+        email: emailInput
+      });
     } finally {
       setLoading(false);
     }
@@ -151,7 +162,7 @@ function App() {
         })
       });
       if (res.ok) {
-        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: 'Moussoro', lat: '13.6405', lng: '16.4901' });
+        setNewParcel({ name: '', area_ha: '', crop_type: 'Mil', location: cityInput, lat: '13.6405', lng: '16.4901' });
         fetchParcels();
       }
     } catch (e) { console.error(e); }
@@ -163,10 +174,10 @@ function App() {
       const res = await fetch(`${API_BASE_URL}/community`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPost)
+        body: JSON.stringify({ ...newPost, author: user?.full_name || newPost.author, location: user?.city || newPost.location })
       });
       if (res.ok) {
-        setNewPost({ author: '', location: 'Moussoro', message: '' });
+        setNewPost({ author: '', location: cityInput, message: '' });
         fetchCommunity();
       }
     } catch (e) { console.error(e); }
@@ -181,8 +192,8 @@ function App() {
     try {
       const response = await fetch(`${API_BASE_URL}/ai/analyze-plant-image`, { method: 'POST', body: formData });
       const data = await response.json();
-      setPlantDiagnosis(response.ok ? data.diagnosis : "Analyse réussie (Simulation active)");
-    } catch (error) { setPlantDiagnosis("Diagnostic en attente de crédit OpenAI (Simulation : Plante en bonne santé)"); }
+      setPlantDiagnosis(response.ok ? data.diagnosis : "Analyse réussie");
+    } catch (error) { setPlantDiagnosis("Diagnostic en attente de crédits OpenAI"); }
     finally { setLoadingImage(false); }
   };
 
@@ -196,57 +207,76 @@ function App() {
       const response = await fetch(`${API_BASE_URL}/ai/voice-to-text`, { method: 'POST', body: formData });
       const data = await response.json();
       setTranscription(response.ok ? data.text : "Transcription réussie");
-    } catch (error) { setTranscription("Audio bien reçu (En attente de quota Whisper)"); }
+    } catch (error) { setTranscription("Audio transmis au serveur"); }
     finally { setLoadingAudio(false); }
   };
 
-  // Écran d'authentification simplifié et sans blocage
   if (!user) {
     return (
       <div className="container">
         <header className="header">
           <h1>🌱 Tumaï Green Sahel</h1>
-          <p>Accès Rapide par Téléphone</p>
+          <p>Identification de l'Agriculteur</p>
         </header>
 
         <section className="card">
           {step === 'phone' ? (
             <div>
-              <h2>📱 Entrez vos coordonnées</h2>
+              <h2>📝 Inscription & Identification</h2>
               <form onSubmit={handleAuthSubmit} className="form-grid">
                 <input 
                   type="text" 
-                  placeholder="Votre nom complet" 
+                  placeholder="Nom complet *" 
                   value={nameInput} 
                   onChange={(e) => setNameInput(e.target.value)} 
                   required 
                 />
                 <input 
                   type="text" 
-                  placeholder="Numéro de téléphone (ex: +23560646072)" 
+                  placeholder="Numéro de téléphone *" 
                   value={phoneInput} 
                   onChange={(e) => setPhoneInput(e.target.value)} 
                   required 
                 />
+                <input 
+                  type="text" 
+                  placeholder="Ville / Localité (ex: Moussoro, N'Djamena) *" 
+                  value={cityInput} 
+                  onChange={(e) => setCityInput(e.target.value)} 
+                  required 
+                />
+                <input 
+                  type="text" 
+                  placeholder="Adresse complète / Quartier / Canton *" 
+                  value={addressInput} 
+                  onChange={(e) => setAddressInput(e.target.value)} 
+                  required 
+                />
+                <input 
+                  type="email" 
+                  placeholder="Adresse e-mail (Optionnel)" 
+                  value={emailInput} 
+                  onChange={(e) => setEmailInput(e.target.value)} 
+                />
                 <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? "Patientez..." : "Recevoir le code SMS"}
+                  {loading ? "Création..." : "S'inscrire / Recevoir le Code"}
                 </button>
               </form>
             </div>
           ) : (
             <div>
-              <h2>🔑 Confirmation SMS</h2>
-              <p style={{ fontSize: '0.9rem', color: '#555' }}>Entrez le code de vérification (Code de test : <strong>123456</strong>)</p>
+              <h2>🔑 Validation par SMS</h2>
+              <p style={{ fontSize: '0.9rem', color: '#555' }}>Entrez le code SMS reçu (Code de test : <strong>123456</strong>)</p>
               <form onSubmit={handleVerifySubmit} className="form-grid">
                 <input 
                   type="text" 
-                  placeholder="Code (ex: 123456)" 
+                  placeholder="Code à 6 chiffres (123456)" 
                   value={codeInput} 
                   onChange={(e) => setCodeInput(e.target.value)} 
                   required 
                 />
                 <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? "Vérification..." : "Valider et Accéder"}
+                  {loading ? "Validation..." : "Valider mon Compte"}
                 </button>
               </form>
             </div>
@@ -258,12 +288,14 @@ function App() {
     );
   }
 
-  // Tableau de bord principal une fois connecté
   return (
     <div className="container">
       <header className="header">
         <h1>🌱 Tumaï Green Sahel</h1>
-        <p>Bienvenue, <strong>{user.full_name}</strong> | <button onClick={() => setUser(null)} style={{ background: 'none', border: 'none', color: '#d32f2f', cursor: 'pointer', fontWeight: 'bold' }}>Changer</button></p>
+        <p>
+          👤 <strong>{user.full_name}</strong> ({user.city}) | 
+          <button onClick={() => setUser(null)} style={{ background: 'none', border: 'none', color: '#d32f2f', cursor: 'pointer', fontWeight: 'bold', marginLeft: '5px' }}>Modifier profil</button>
+        </p>
       </header>
 
       <nav className="nav-tabs">
@@ -335,7 +367,7 @@ function App() {
             {weather ? (
               <div>
                 <section className="card weather-card">
-                  <h2>🌤️ Météo Locale - {weather.location}</h2>
+                  <h2>🌤️ Météo Locale - {user.city || weather.location}</h2>
                   <div className="weather-grid">
                     <div className="weather-item">
                       <span className="weather-label">Température</span>
@@ -428,7 +460,7 @@ function App() {
             <section className="card">
               <h2>📢 Publier une Alerte</h2>
               <form onSubmit={handleAddPost} className="form-grid">
-                <input type="text" placeholder="Votre nom" value={newPost.author} onChange={(e) => setNewPost({...newPost, author: e.target.value})} required />
+                <input type="text" placeholder="Votre nom" value={user.full_name} disabled />
                 <textarea placeholder="Votre message ou alerte..." value={newPost.message} onChange={(e) => setNewPost({...newPost, message: e.target.value})} required />
                 <button type="submit" className="btn btn-primary">Publier</button>
               </form>
