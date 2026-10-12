@@ -4,16 +4,46 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import './App.css';
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+// Empecher le crash des icônes Leaflet
+try {
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  });
+} catch (e) {
+  console.error("Erreur config Leaflet:", e);
+}
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://sahelclimate-api.onrender.com";
 
-function App() {
+// Composant d'Erreur Sécurisé pour éviter les crashs complets
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("Erreur interceptée par ErrorBoundary:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h3>Un problème est survenu lors de l'affichage de ce module.</h3>
+          <button className="btn btn-main" onClick={() => window.location.reload()}>Recharger l'application</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function MainApp() {
   const [currentScreen, setCurrentScreen] = useState('home');
 
   // Profil Utilisateur
@@ -487,21 +517,23 @@ function App() {
               <h2>🗺️ Carte GPS Satellite</h2>
               <p>Visualisation des parcelles géolocalisées à Moussoro / Barh El Gazel</p>
               <div className="map-container-box">
-                <MapContainer center={[13.6405, 16.4901]} zoom={13} scrollWheelZoom={false} style={{ height: "380px", width: "100%", borderRadius: "12px" }}>
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  {parcels.map((p) => (
-                    <Marker key={p.id} position={[p.lat || 13.6405, p.lng || 16.4901]}>
-                      <Popup>
-                        <strong>{p.name}</strong><br />
-                        Culture: {p.crop_type}<br />
-                        Superficie: {p.area_ha} ha
-                      </Popup>
-                    </Marker>
-                  ))}
-                </MapContainer>
+                {typeof window !== 'undefined' && (
+                  <MapContainer center={[13.6405, 16.4901]} zoom={13} scrollWheelZoom={false} style={{ height: "350px", width: "100%", borderRadius: "12px" }}>
+                    <TileLayer
+                      attribution='&copy; OpenStreetMap'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    {parcels.map((p) => (
+                      <Marker key={p.id} position={[p.lat || 13.6405, p.lng || 16.4901]}>
+                        <Popup>
+                          <strong>{p.name}</strong><br />
+                          Culture: {p.crop_type}<br />
+                          Superficie: {p.area_ha} ha
+                        </Popup>
+                      </Marker>
+                    ))}
+                  </MapContainer>
+                )}
               </div>
             </section>
           </div>
@@ -641,4 +673,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
+  );
+}
