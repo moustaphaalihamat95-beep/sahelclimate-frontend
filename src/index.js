@@ -10,12 +10,12 @@ root.render(
   </React.StrictMode>
 );
 
-// Désenregistrement complet du Service Worker pour supprimer la boucle de rechargement
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (let registration of registrations) {
-      registration.unregister();
-      console.log('Service Worker désenregistré avec succès.');
-    }
+// Enregistrement du Service Worker pour le support PWA / Offline
+if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/service-worker.js')
+      .then((reg) => console.log('[PWA] Service Worker enregistré avec succès:', reg.scope))
+      .catch((err) => console.error('[PWA] Échec enregistrement Service Worker:', err));
   });
 }

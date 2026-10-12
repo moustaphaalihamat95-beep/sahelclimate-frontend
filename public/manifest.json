@@ -1,15 +1,26 @@
 {
   "short_name": "TumaïSahel",
-  "name": "Tumaï Green Sahel",
+  "name": "Tumaï Green Sahel - Agro-Écologie",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#2e7d32",
-  "background_color": "#ffffff"
+  "background_color": "#f4f7f4",
+  "description": "Assistant Agro-Écologique Intelligente et Cartographie pour le Sahel (Moussoro / Barh El Gazel)"
 }
