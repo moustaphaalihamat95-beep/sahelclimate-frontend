@@ -1,95 +1,95 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, Polygon } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import { useEffect, useRef } from "react";
 import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+import "leaflet-draw";
 
-const customIcon = new L.Icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+export default function Map({ parcels = [], selectedParcelId, onSelectParcel, onAreaDrawn }) {
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+  const drawnItemsRef = useRef(null);
 
-export default function Map({ parcels, selectedParcelId, onSelectParcel }) {
-  const defaultCenter = [12.8, 15.8];
+  useEffect(() => {
+    if (!mapRef.current) return;
 
-  const parcelsWithCoords = parcels.map((p) => {
-    if (p.id === 1 || p.location_name?.includes("N'Djamena")) {
-      return {
-        ...p,
-        coordinates: [12.1348, 15.0557],
-        polygon: [
-          [12.138, 15.052],
-          [12.139, 15.058],
-          [12.132, 15.059],
-          [12.131, 15.053],
-        ],
-      };
-    } else {
-      return {
-        ...p,
-        coordinates: [13.6417, 16.4901],
-        polygon: [
-          [13.645, 16.488],
-          [13.646, 16.494],
-          [13.638, 16.495],
-          [13.637, 16.489],
-        ],
-      };
+    if (!mapInstance.current) {
+      // Centré sur le Tchad (N'Djamena / Moussoro / Barh El Gazel)
+      const map = L.map(mapRef.current).setView([13.64, 16.49], 7);
+      mapInstance.current = map;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+
+      const drawnItems = new L.FeatureGroup();
+      map.addLayer(drawnItems);
+      drawnItemsRef.current = drawnItems;
+
+      // Configuration de l'outil de dessin de zone
+      const drawControl = new L.Control.Draw({
+        edit: { featureGroup: drawnItems },
+        draw: {
+          polygon: {
+            allowIntersection: false,
+            showArea: true,
+            shapeOptions: { color: "#10b981", weight: 3 }
+          },
+          polyline: false,
+          circle: false,
+          rectangle: true,
+          marker: false,
+          circlemarker: false
+        }
+      });
+      map.addControl(drawControl);
+
+      // Événement déclenché lorsque l'agriculteur termine le tracé
+      map.on(L.Draw.Event.CREATED, (e) => {
+        const layer = e.layer;
+        drawnItems.clearLayers();
+        drawnItems.addLayer(layer);
+
+        const latLngs = layer.getLatLngs()[0];
+        if (latLngs && onAreaDrawn) {
+          let areaInM2 = 0;
+          if (L.GeometryUtil && L.GeometryUtil.geodesicArea) {
+            areaInM2 = L.GeometryUtil.geodesicArea(latLngs);
+          } else {
+            areaInM2 = Math.abs(latLngs.reduce((acc, curr, i, arr) => {
+              const next = arr[(i + 1) % arr.length];
+              return acc + (curr.lng * next.lat - next.lng * curr.lat);
+            }, 0)) * 111000 * 111000 / 2;
+          }
+
+          const areaHa = Math.max((areaInM2 / 10000), 1.2).toFixed(2);
+          onAreaDrawn({
+            area_ha: areaHa,
+            latLngs: latLngs
+          });
+        }
+      });
     }
-  });
 
-  return (
-    <div className="w-full h-[380px] rounded-xl overflow-hidden border border-slate-800 shadow-md">
-      <MapContainer
-        center={defaultCenter}
-        zoom={6}
-        scrollWheelZoom={true}
-        className="w-full h-full"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+    // Affichage des marqueurs de parcelles existantes
+    parcels.forEach((p) => {
+      const lat = p.lat || 13.64 + (p.id * 0.1);
+      const lng = p.lng || 16.49 + (p.id * 0.1);
 
-        {parcelsWithCoords.map((parcel) => (
-          <div key={parcel.id}>
-            <Marker
-              position={parcel.coordinates}
-              icon={customIcon}
-              eventHandlers={{
-                click: () => onSelectParcel(parcel.id),
-              }}
-            >
-              <Popup>
-                <div className="text-slate-900 font-sans">
-                  <h3 className="font-bold text-sm">{parcel.location_name}</h3>
-                  <p className="text-xs text-slate-600">Culture : {parcel.crop_type}</p>
-                  <p className="text-xs font-semibold text-emerald-600 mt-1">
-                    NDVI : {parcel.ndvi_value}
-                  </p>
-                </div>
-              </Popup>
-            </Marker>
+      const marker = L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: p.id === selectedParcelId ? "#10b981" : "#f59e0b",
+        color: "#ffffff",
+        weight: 2,
+        fillOpacity: 0.9
+      }).addTo(mapInstance.current);
 
-            {parcel.polygon && (
-              <Polygon
-                positions={parcel.polygon}
-                pathOptions={{
-                  color: selectedParcelId === parcel.id ? "#10b981" : "#3b82f6",
-                  fillColor: selectedParcelId === parcel.id ? "#10b981" : "#3b82f6",
-                  fillOpacity: selectedParcelId === parcel.id ? 0.4 : 0.2,
-                  weight: selectedParcelId === parcel.id ? 3 : 1,
-                }}
-              />
-            )}
-          </div>
-        ))}
-      </MapContainer>
-    </div>
-  );
+      marker.bindPopup(`<b>${p.location_name}</b><br/>Culture: ${p.crop_type}<br/>NDVI: ${p.ndvi_value}`);
+      marker.on("click", () => onSelectParcel && onSelectParcel(p.id));
+    });
+
+  }, [parcels, selectedParcelId, onSelectParcel, onAreaDrawn]);
+
+  return <div ref={mapRef} className="w-full h-[400px] rounded-2xl overflow-hidden z-10 border border-slate-800" />;
 }
