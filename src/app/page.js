@@ -17,7 +17,10 @@ import {
   CheckCircle2, 
   Droplets,
   BookOpen,
-  Send
+  Send,
+  Bot,
+  Sparkles,
+  UserCheck
 } from "lucide-react";
 
 const MapWithNoSSR = dynamic(() => import("./components/Map"), {
@@ -32,7 +35,7 @@ const MapWithNoSSR = dynamic(() => import("./components/Map"), {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sahelclimate-api.onrender.com";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'trainings', 'risks', 'settings'
+  const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard', 'assistant', 'trainings', 'risks', 'settings'
   
   // --- Authentification ---
   const [user, setUser] = useState(() => {
@@ -76,6 +79,16 @@ export default function Home() {
   const [riskSoilType, setRiskSoilType] = useState("sableux");
   const [riskWaterAccess, setRiskWaterAccess] = useState("puits");
   const [riskAlertSent, setRiskAlertSent] = useState(false);
+
+  // --- State Assistant IA / Chatbot ---
+  const [chatMessages, setChatMessages] = useState([
+    {
+      sender: "ai",
+      text: "Bonjour ! Je suis l'Assistant IA Agronome de SahelClimate-AI. Posez-moi vos questions sur le choix des cultures, le calendrier d'irrigation à Moussoro ou les symptômes de stress hydrique."
+    }
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
@@ -176,6 +189,33 @@ export default function Home() {
 
   useEffect(() => { if (user) fetchParcels(); }, [user, fetchParcels]);
   useEffect(() => { if (user && selectedParcelId) fetchDiagnostic(selectedParcelId); }, [user, selectedParcelId, fetchDiagnostic]);
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userText = chatInput;
+    setChatMessages((prev) => [...prev, { sender: "user", text: userText }]);
+    setChatInput("");
+    setChatLoading(true);
+
+    // Simulation de réponse de l'IA agronomique adaptée au Tchad / Sahel
+    setTimeout(() => {
+      let aiResponse = "En zone sahélienne (comme Barh El Gazel / Moussoro), il est recommandé d'adapter la densité de semis selon la rétention en eau du sol et d'utiliser un paillage organique.";
+      
+      const query = userText.toLowerCase();
+      if (query.includes("sorgho") || query.includes("maïs") || query.includes("semence")) {
+        aiResponse = "Pour le Sorgho et le Maïs à " + (user?.city || "Moussoro") + ", privilégiez les variétés à cycle court (75-90 jours) résistantes aux poches de sécheresse pendant la phase de floraison.";
+      } else if (query.includes("eau") || query.includes("irrigation") || query.includes("arros")) {
+        aiResponse = "En cas de stress hydrique avec un sol sableux, privilégiez un arrosage tôt le matin ou au coucher du soleil (15 à 20 mm/semaine) pour réduire l'évaporation.";
+      } else if (query.includes("ndvi") || query.includes("carte") || query.includes("maladie")) {
+        aiResponse = "Un NDVI inférieur à 0.4 indique généralement un jaunissement végétal ou un manque d'azote/eau. Inspectez le dessous des feuilles et ajustez l'apport hydrique.";
+      }
+
+      setChatMessages((prev) => [...prev, { sender: "ai", text: aiResponse }]);
+      setChatLoading(false);
+    }, 1000);
+  };
 
   const handleAddParcel = async (e) => {
     e.preventDefault();
@@ -335,6 +375,16 @@ export default function Home() {
             </button>
 
             <button
+              onClick={() => setActiveTab('assistant')}
+              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'assistant' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+              }`}
+            >
+              <Bot className="w-4 h-4 text-teal-400" />
+              <span>Assistant IA Climat</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('trainings')}
               className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                 activeTab === 'trainings' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
@@ -351,7 +401,7 @@ export default function Home() {
               }`}
             >
               <AlertTriangle className="w-4 h-4" />
-              <span>Formulaire de Risque & Alertes</span>
+              <span>Formulaire de Risque</span>
             </button>
 
             <button
@@ -407,6 +457,7 @@ export default function Home() {
         {/* 📱 NAVIGATION MOBILE */}
         <div className="md:hidden flex justify-around border-b border-slate-800 bg-slate-900/90 p-2">
           <button onClick={() => setActiveTab('dashboard')} className={`p-2 rounded-lg ${activeTab === 'dashboard' ? 'text-emerald-400' : 'text-slate-400'}`}><LayoutDashboard className="w-5 h-5"/></button>
+          <button onClick={() => setActiveTab('assistant')} className={`p-2 rounded-lg ${activeTab === 'assistant' ? 'text-emerald-400' : 'text-slate-400'}`}><Bot className="w-5 h-5"/></button>
           <button onClick={() => setActiveTab('trainings')} className={`p-2 rounded-lg ${activeTab === 'trainings' ? 'text-emerald-400' : 'text-slate-400'}`}><GraduationCap className="w-5 h-5"/></button>
           <button onClick={() => setActiveTab('risks')} className={`p-2 rounded-lg ${activeTab === 'risks' ? 'text-emerald-400' : 'text-slate-400'}`}><AlertTriangle className="w-5 h-5"/></button>
           <button onClick={() => setActiveTab('settings')} className={`p-2 rounded-lg ${activeTab === 'settings' ? 'text-emerald-400' : 'text-slate-400'}`}><Settings className="w-5 h-5"/></button>
@@ -488,7 +539,59 @@ export default function Home() {
             </>
           )}
 
-          {/* 2. FORMATIONS & CONSEILS */}
+          {/* 🤖 2. ASSISTANT IA CLIMAT & AGRONOMIE */}
+          {activeTab === 'assistant' && (
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 flex flex-col h-[600px]">
+              <div className="flex items-center space-x-3 pb-4 border-b border-slate-800 mb-4">
+                <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-400 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white">Assistant IA Agronome</h2>
+                  <p className="text-[11px] text-slate-400">Spécialisé en agriculture sahélienne & gestion du climat Tchadien</p>
+                </div>
+              </div>
+
+              {/* Zone de discussion */}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                {chatMessages.map((msg, index) => (
+                  <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-xl p-3.5 rounded-2xl text-xs leading-relaxed ${
+                      msg.sender === 'user' 
+                        ? 'bg-emerald-600 text-white rounded-br-none' 
+                        : 'bg-slate-950 border border-slate-800 text-slate-200 rounded-bl-none'
+                    }`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-slate-950 border border-slate-800 text-slate-400 p-3 rounded-2xl text-xs animate-pulse">
+                      L'Assistant IA analyse votre question...
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Saisie de message */}
+              <form onSubmit={handleSendMessage} className="mt-4 pt-4 border-t border-slate-800 flex space-x-3">
+                <input
+                  type="text"
+                  placeholder="Posez votre question (ex: Quel cycle de Sorgho choisir à Moussoro ?)"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+                <button type="submit" className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-2 transition-all">
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Envoyer</span>
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* 3. FORMATIONS & CONSEILS */}
           {activeTab === 'trainings' && (
             <div className="space-y-6">
               <div>
@@ -533,7 +636,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* 3. FORMULAIRE DE RISQUE & ALERTES */}
+          {/* 4. FORMULAIRE DE RISQUE & ALERTES */}
           {activeTab === 'risks' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
@@ -593,7 +696,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* 4. PARAMÈTRES & PROFIL */}
+          {/* 5. PARAMÈTRES & PROFIL */}
           {activeTab === 'settings' && (
             <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl max-w-2xl">
               <h2 className="text-sm font-bold text-white mb-6 flex items-center space-x-2">
