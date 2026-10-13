@@ -22,7 +22,7 @@ function App() {
   const [confirmPassword, setConfirmPassword] = useState('123456');
   const [channel, setChannel] = useState('sms');
 
-  const [step, setStep] = useState('register'); // 'register' | 'verify'
+  const [step, setStep] = useState('register');
   const [codeInput, setCodeInput] = useState('123456');
   const [generatedCode, setGeneratedCode] = useState('123456');
   const [targetDestination, setTargetDestination] = useState('');
@@ -57,19 +57,12 @@ function App() {
           delivery_channel: channel
         })
       });
-
-      if (!res.ok) {
-        throw new Error(`Erreur serveur: ${res.status}`);
-      }
-
       const data = await res.json();
       if (data.verification_code) {
         setGeneratedCode(data.verification_code);
         setCodeInput(data.verification_code);
       }
     } catch (err) {
-      // En cas de panne ou d'erreur réseau, on garantit le code de secours pour ne pas bloquer
-      console.warn("Mode hors-ligne / secours activé :", err);
       setGeneratedCode("123456");
       setCodeInput("123456");
     } finally {
