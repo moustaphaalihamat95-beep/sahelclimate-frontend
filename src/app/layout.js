@@ -1,45 +1,26 @@
 import "./globals.css";
-import Script from "next/script";
 
 export const metadata = {
-  title: "SahelClimate-AI - Assurance Paramétrique",
-  description: "Plateforme d'analyse satellite NDVI et d'assurance sécheresse au Tchad",
+  title: "SahelClimate-AI",
+  description: "Plateforme Climat & Réseau Agricole Sahélien",
   manifest: "/manifest.json",
+  themeColor: "#10b981",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "SahelClimate",
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="fr">
       <head>
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        />
-        <link
-          rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
-        />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body>
+      <body className="bg-slate-950 text-slate-100 font-sans antialiased">
         {children}
-
-        {/* Inscription du Service Worker via Next Script */}
-        <Script id="register-sw" strategy="afterInteractive">
-          {`
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(
-                  function(registration) {
-                    console.log('[PWA] Service Worker enregistré avec succès:', registration.scope);
-                  },
-                  function(err) {
-                    console.log('[PWA] Échec enregistrement Service Worker:', err);
-                  }
-                );
-              });
-            }
-          `}
-        </Script>
       </body>
     </html>
   );
