@@ -23,7 +23,12 @@ import {
   TreePine,
   Calendar,
   Layers,
-  Apple
+  MessageSquare,
+  Users,
+  Phone,
+  ThumbsUp,
+  Share2,
+  MessageCircle
 } from "lucide-react";
 
 const MapWithNoSSR = dynamic(() => import("./components/Map"), {
@@ -78,10 +83,36 @@ export default function Home() {
   const [newNdvi, setNewNdvi] = useState("0.45");
   const [submitting, setSubmitting] = useState(false);
 
-  // --- Formulaire de Risque ---
-  const [riskSoilType, setRiskSoilType] = useState("sableux");
-  const [riskWaterAccess, setRiskWaterAccess] = useState("puits");
-  const [riskAlertSent, setRiskAlertSent] = useState(false);
+  // --- Forum & Communauté ---
+  const [posts, setPosts] = useState([
+    {
+      id: 1,
+      author: "Mahamat Salhedine",
+      city: "Barh El Gazel (Moussoro)",
+      crop: "Sorgho & Sésame",
+      text: "Grâce à la recommandation d'irrigation de SahelClimate-AI, j'ai réduit l'utilisation d'eau de mon puits de 30% tout en gardant des feulles de Sorgho bien vertes !",
+      likes: 12,
+      time: "Il y a 2 heures"
+    },
+    {
+      id: 2,
+      author: "Khadidja Ousmane",
+      city: "N'Djamena Nord",
+      crop: "Maïs & Maraîchage",
+      text: "L'outil de tracé de zone m'a permis de calculer mes 4.5 hectares avec précision et de savoir exactement quelles zones nécessitaient du compost avant le semis.",
+      likes: 8,
+      time: "Il y a 5 heures"
+    }
+  ]);
+  const [newPostText, setNewPostText] = useState("");
+
+  // --- Annuaire des Agriculteurs ---
+  const [farmersList, setFarmersList] = useState([
+    { id: 1, name: "Moustapha Ali Hamat", city: "Moussoro", phone: "+23560646072", crops: "Sorgho, Sésame, Anacardier", area: "12.5 ha" },
+    { id: 2, name: "Mahamat Salhedine", city: "Moussoro", phone: "+23566123456", crops: "Sorgho Rouge, Niébé", area: "8.0 ha" },
+    { id: 3, name: "Khadidja Ousmane", city: "N'Djamena", phone: "+23599887766", crops: "Maïs, Arachide, Citronniers", area: "15.2 ha" },
+    { id: 4, name: "Ibrahim Abakar", city: "Pala", phone: "+23563112233", crops: "Coton, Sésame, Moringa", area: "20.0 ha" }
+  ]);
 
   // --- Assistant IA ---
   const [chatMessages, setChatMessages] = useState([
@@ -132,6 +163,12 @@ export default function Home() {
     const newUser = { full_name: fullName, phone_number: phone, city: city, address: address, email: email };
     try { localStorage.setItem('sahel_user', JSON.stringify(newUser)); } catch (e) {}
     setUser(newUser);
+    
+    // Ajouter l'utilisateur à l'annuaire local
+    setFarmersList(prev => [
+      { id: Date.now(), name: fullName, city: city, phone: phone, crops: "Sorgho, Maïs", area: "10 ha" },
+      ...prev
+    ]);
   };
 
   const handleLogout = () => {
@@ -190,7 +227,6 @@ export default function Home() {
   useEffect(() => { if (user) fetchParcels(); }, [user, fetchParcels]);
   useEffect(() => { if (user && selectedParcelId) fetchDiagnostic(selectedParcelId); }, [user, selectedParcelId, fetchDiagnostic]);
 
-  // Handler déclenché quand l'agriculteur trace sa zone
   const handleAreaDrawn = (zone) => {
     setDrawnZone({
       area_ha: zone.area_ha,
@@ -204,8 +240,7 @@ export default function Home() {
       trees_and_fruits: [
         { name: "Anacardier (Noix de Cajou)", benefit: "Fixation des sols & Revenu stable à long terme" },
         { name: "Moringa Oleifera", benefit: "Croissance rapide & Propriétés nutritionnelles" },
-        { name: "Citronniers / Manguiers", benefit: "Production fruitière saisonnière & Ombrage" },
-        { name: "Acacia Senegal (Gomme Arabique)", benefit: "Résilience extrême à la sécheresse & Exportation" }
+        { name: "Citronniers / Manguiers", benefit: "Production fruitière saisonnière & Ombrage" }
       ],
       calendar: {
         prep: "Mai - Juin : Traitement de la terre & enrichissement compost",
@@ -216,27 +251,23 @@ export default function Home() {
     });
   };
 
-  const handleSendMessage = (e) => {
+  const handleCreatePost = (e) => {
     e.preventDefault();
-    if (!chatInput.trim()) return;
+    if (!newPostText.trim()) return;
 
-    const userText = chatInput;
-    setChatMessages((prev) => [...prev, { sender: "user", text: userText }]);
-    setChatInput("");
-    setChatLoading(true);
-
-    setTimeout(() => {
-      let aiResponse = "Sur votre terre, la rotation entre le Sorgho et l'Arachide permettra de maintenir une excellente régénération minérale sans épuiser le sol.";
-      const query = userText.toLowerCase();
-      if (query.includes("arbre") || query.includes("fruit")) {
-        aiResponse = "Pour les arbres fruitiers à " + (user?.city || "Moussoro") + ", nous recommandons d'associer des Citronniers à des anacardiers en bordure de parcelle pour faire brise-vent.";
-      } else if (query.includes("eau") || query.includes("arrosage")) {
-        aiResponse = "Privilégiez un arrosage goutte-à-goutte tôt le matin (15-18 mm/semaine) pour maximiser l'absorption et éviter l'évaporation.";
-      }
-
-      setChatMessages((prev) => [...prev, { sender: "ai", text: aiResponse }]);
-      setChatLoading(false);
-    }, 900);
+    setPosts([
+      {
+        id: Date.now(),
+        author: user.full_name,
+        city: user.city,
+        crop: "Cultures Sahéliennes",
+        text: newPostText,
+        likes: 1,
+        time: "À l'instant"
+      },
+      ...posts
+    ]);
+    setNewPostText("");
   };
 
   const handleAddParcel = async (e) => {
@@ -282,7 +313,7 @@ export default function Home() {
               <ShieldAlert className="w-7 h-7" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-teal-200 bg-clip-text text-transparent">SahelClimate-AI</h1>
-            <p className="text-xs text-slate-400 mt-1">Plateforme Intelligence Climat & Agriculture Sahélienne</p>
+            <p className="text-xs text-slate-400 mt-1">Plateforme Intelligence Climat & Réseau Agricole Sahélien</p>
           </div>
 
           {authStep === 'register' ? (
@@ -342,7 +373,7 @@ export default function Home() {
               {authError && <p className="text-rose-400 text-xs text-center">{authError}</p>}
 
               <button type="submit" disabled={authLoading} className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-950/50">
-                {authLoading ? "Traitement..." : "S'inscrire & Valider mon Compte"}
+                {authLoading ? "Traitement..." : "S'inscrire & Rejoindre la Communauté"}
               </button>
             </form>
           ) : (
@@ -358,7 +389,7 @@ export default function Home() {
               <input type="text" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} required className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 text-center text-2xl font-mono tracking-widest text-white focus:border-emerald-500 focus:outline-none" />
 
               <button type="submit" className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all">
-                Accéder au Dashboard
+                Accéder à SahelClimate-AI
               </button>
             </form>
           )}
@@ -370,7 +401,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
       
-      {/* 🧭 SIDEBAR MODERNE */}
+      {/* 🧭 SIDEBAR MODERNE AVEC NOUVELLES RUBRIQUES */}
       <aside className="w-64 bg-slate-900/80 border-r border-slate-800/80 p-5 flex flex-col justify-between hidden md:flex">
         <div>
           <div className="flex items-center space-x-3 mb-8 px-2">
@@ -379,7 +410,7 @@ export default function Home() {
             </div>
             <div>
               <h1 className="font-bold text-sm text-white">SahelClimate</h1>
-              <p className="text-[10px] text-slate-400">v2.0 • Pro Sahel</p>
+              <p className="text-[10px] text-slate-400">v2.5 • Network Edition</p>
             </div>
           </div>
 
@@ -392,6 +423,26 @@ export default function Home() {
             >
               <LayoutDashboard className="w-4 h-4" />
               <span>Tableau de bord</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('community')}
+              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'community' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-400" />
+              <span>Espace Communauté & Avis</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('network')}
+              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                activeTab === 'network' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+              }`}
+            >
+              <Users className="w-4 h-4 text-blue-400" />
+              <span>Annuaire Agriculteurs</span>
             </button>
 
             <button
@@ -412,16 +463,6 @@ export default function Home() {
             >
               <GraduationCap className="w-4 h-4" />
               <span>Formations & Conseils</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('risks')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'risks' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
-            >
-              <AlertTriangle className="w-4 h-4" />
-              <span>Formulaire de Risque</span>
             </button>
 
             <button
@@ -457,18 +498,15 @@ export default function Home() {
       <div className="flex-1 flex flex-col overflow-y-auto">
         <header className="h-16 border-b border-slate-800/80 px-6 flex items-center justify-between bg-slate-900/40 backdrop-blur-md sticky top-0 z-40">
           <div className="flex items-center space-x-3">
-            <span className="text-xs text-slate-400">Espace Agricole /</span>
+            <span className="text-xs text-slate-400">SahelClimate /</span>
             <span className="text-xs font-semibold text-white capitalize">{activeTab}</span>
           </div>
 
           <div className="flex items-center space-x-3">
-            <button onClick={() => setShowForm(true)} className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-md shadow-emerald-950/50 transition-all">
+            <button onClick={() => setShowForm(true)} className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-md transition-all">
               <Plus className="w-3.5 h-3.5" />
               <span>Nouvelle Parcelle</span>
             </button>
-            <div className="w-8 h-8 bg-slate-800 rounded-xl flex items-center justify-center text-slate-400 border border-slate-700/50">
-              <Bell className="w-4 h-4" />
-            </div>
           </div>
         </header>
 
@@ -496,7 +534,7 @@ export default function Home() {
                 />
               </div>
 
-              {/* 🌾 RÉSULTAT DU TRACÉ ET CAPACITÉ DU SOL */}
+              {/* RÉSULTAT DU TRACÉ ET CAPACITÉ DU SOL */}
               {drawnZone && (
                 <div className="bg-gradient-to-br from-emerald-950/40 via-slate-900/90 to-slate-950 border border-emerald-500/40 p-6 rounded-2xl shadow-xl space-y-6">
                   <div className="flex justify-between items-start border-b border-emerald-500/20 pb-4">
@@ -511,7 +549,6 @@ export default function Home() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Plantes & Alimentation */}
                     <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
                       <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
                         <Sparkles className="w-4 h-4" />
@@ -527,7 +564,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Arbres & Fruits */}
                     <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
                       <h4 className="text-xs font-bold text-teal-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
                         <TreePine className="w-4 h-4" />
@@ -543,97 +579,126 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Calendrier Agricole Sur-Mesure */}
-                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
-                    <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>Calendrier Agricultural Précis pour cette Terre</span>
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                      <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Préparation</span>
-                        <p className="text-slate-200">{drawnZone.calendar.prep}</p>
-                      </div>
-                      <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Semis</span>
-                        <p className="text-slate-200">{drawnZone.calendar.semis}</p>
-                      </div>
-                      <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Entretien</span>
-                        <p className="text-slate-200">{drawnZone.calendar.irrigation}</p>
-                      </div>
-                      <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                        <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">Récolte</span>
-                        <p className="text-slate-200">{drawnZone.calendar.recolte}</p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
-
-              {/* Parcelles & Diagnostic */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl">
-                  <h2 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4">Mes Parcelles ({parcels.length})</h2>
-                  <div className="flex space-x-2 mb-4">
-                    <button onClick={() => setFilter("all")} className={`px-3 py-1 rounded-lg text-xs font-medium ${filter === "all" ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-400"}`}>Toutes</button>
-                    <button onClick={() => setFilter("high")} className={`px-3 py-1 rounded-lg text-xs font-medium ${filter === "high" ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-400"}`}>NDVI Hôte</button>
-                    <button onClick={() => setFilter("low")} className={`px-3 py-1 rounded-lg text-xs font-medium ${filter === "low" ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-400"}`}>NDVI Bas</button>
-                  </div>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {filteredParcels.map((p) => (
-                      <button key={p.id} onClick={() => setSelectedParcelId(p.id)} className={`w-full text-left p-3.5 rounded-xl transition-all ${selectedParcelId === p.id ? "bg-emerald-950/60 border border-emerald-500/50 text-white" : "bg-slate-950/60 border border-slate-800/60 text-slate-400 hover:bg-slate-800/40"}`}>
-                        <div className="flex justify-between items-center">
-                          <span className="font-semibold text-xs">{p.location_name}</span>
-                          <span className="text-xs text-emerald-400 font-mono">NDVI: {p.ndvi_value}</span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-1">{p.crop_type} • {p.area_ha} ha</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="lg:col-span-2 bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start mb-6">
-                      <div>
-                        <h2 className="text-lg font-bold text-white">{diagnostic?.location_name || "Sélectionnez une parcelle"}</h2>
-                        <p className="text-xs text-slate-400 mt-1">Culture : {diagnostic?.crop_type || "-"} | Superficie : {diagnostic?.area_ha || "-"} ha</p>
-                      </div>
-                      <a href={`${API_URL}/api/v1/parcels/${selectedParcelId}/report/pdf`} target="_blank" rel="noreferrer" className="px-3.5 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center space-x-2 transition-all">
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Télécharger Rapport PDF</span>
-                      </a>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800/80">
-                        <p className="text-xs text-slate-400 mb-1">Indice NDVI</p>
-                        <p className="text-2xl font-bold text-emerald-400 font-mono">{diagnostic?.ndvi_value || "0.00"}</p>
-                        <p className="text-xs text-slate-500 mt-1">{diagnostic?.health_status}</p>
-                      </div>
-                      <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800/80">
-                        <p className="text-xs text-slate-400 mb-1">Risque Sécheresse</p>
-                        <p className={`text-2xl font-bold font-mono ${diagnostic?.drought_risk === "Faible" ? "text-emerald-400" : "text-amber-400"}`}>{diagnostic?.drought_risk || "Inconnu"}</p>
-                        <p className="text-xs text-slate-500 mt-1">Vulnérabilité eau</p>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800/80">
-                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
-                        <Droplets className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Recommandation d'Irrigation</span>
-                      </h3>
-                      <p className="text-xs text-slate-200">{diagnostic?.irrigation_recommendation || "Sélectionnez une parcelle."}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </>
           )}
 
-          {/* 🤖 2. ASSISTANT IA */}
+          {/* 💬 2. COMMUNAUTÉ & ESPACE D'ÉCHANGE DE CONSEILS */}
+          {activeTab === 'community' && (
+            <div className="space-y-6">
+              <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
+                <h2 className="text-sm font-bold text-white mb-2 flex items-center space-x-2">
+                  <MessageSquare className="w-4 h-4 text-emerald-400" />
+                  <span>Publier un Conseil ou une Recommandation</span>
+                </h2>
+                <p className="text-xs text-slate-400 mb-4">Partagez vos retours d'expérience sur l'utilisation de l'application et vos réussites agricoles.</p>
+
+                <form onSubmit={handleCreatePost} className="space-y-3">
+                  <textarea
+                    rows="3"
+                    value={newPostText}
+                    onChange={(e) => setNewPostText(e.target.value)}
+                    placeholder="Exemple : J'ai appliqué le paillage sur mon champ à Moussoro après le diagnostic NDVI, la rétention d'eau est excellente !"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <div className="flex justify-end">
+                    <button type="submit" className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2">
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Publier mon message</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Fil de discussion */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Publications de la Communauté</h3>
+                {posts.map((post) => (
+                  <div key={post.id} className="bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-600/20 text-emerald-400 font-bold flex items-center justify-center text-xs">
+                          {post.author.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-white">{post.author}</h4>
+                          <p className="text-[10px] text-slate-400">{post.city} • Cultures : {post.crop}</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-slate-500">{post.time}</span>
+                    </div>
+
+                    <p className="text-xs text-slate-200 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/60">{post.text}</p>
+
+                    <div className="flex items-center space-x-6 text-xs text-slate-400 pt-1">
+                      <button className="flex items-center space-x-1.5 hover:text-emerald-400 transition-colors">
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                        <span>{post.likes} J'aime</span>
+                      </button>
+                      <button className="flex items-center space-x-1.5 hover:text-emerald-400 transition-colors">
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>Commenter</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 👥 3. ANNUAIRE DES AGRICULTEURS & PRISE DE CONTACT */}
+          {activeTab === 'network' && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-bold text-white">Réseau & Annuaire des Agriculteurs</h2>
+                <p className="text-xs text-slate-400">Mettez-vous en contact avec d'autres producteurs du Tchad pour échanger vos connaissances et équipements.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {farmersList.map((farmer) => (
+                  <div key={farmer.id} className="bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-300 font-bold flex items-center justify-center text-sm">
+                          {farmer.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-white">{farmer.name}</h3>
+                          <p className="text-xs text-slate-400">📍 {farmer.city} • {farmer.area}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs mb-4">
+                        <span className="text-slate-400 block mb-1">Cultures exploitées :</span>
+                        <span className="text-emerald-400 font-medium">{farmer.crops}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-3">
+                      <a 
+                        href={`tel:${farmer.phone}`}
+                        className="flex-1 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition-all"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>Appeler ({farmer.phone})</span>
+                      </a>
+                      <a 
+                        href={`https://wa.me/${farmer.phone.replace('+', '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="py-2.5 px-4 bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 border border-teal-500/30 rounded-xl text-xs font-semibold flex items-center justify-center transition-all"
+                      >
+                        <span>WhatsApp</span>
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 🤖 4. ASSISTANT IA */}
           {activeTab === 'assistant' && (
             <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 flex flex-col h-[600px]">
               <div className="flex items-center space-x-3 pb-4 border-b border-slate-800 mb-4">
@@ -658,16 +723,9 @@ export default function Home() {
                     </div>
                   </div>
                 ))}
-                {chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-slate-950 border border-slate-800 text-slate-400 p-3 rounded-2xl text-xs animate-pulse">
-                      L'Assistant IA analyse votre question...
-                    </div>
-                  </div>
-                )}
               </div>
 
-              <form onSubmit={handleSendMessage} className="mt-4 pt-4 border-t border-slate-800 flex space-x-3">
+              <form onSubmit={(e) => { e.preventDefault(); if (chatInput.trim()) { setChatMessages(prev => [...prev, { sender: 'user', text: chatInput }, { sender: 'ai', text: 'Pour maximiser la production sur votre terre à ' + (user?.city || 'Moussoro') + ', nous recommandons d\'associer le Sorgho aux légumineuses pour enrichir naturellement le sol.' }]); setChatInput(''); } }} className="mt-4 pt-4 border-t border-slate-800 flex space-x-3">
                 <input
                   type="text"
                   placeholder="Posez votre question (ex: Quels arbres planter sur ma terre ?)"
@@ -683,7 +741,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* 3. FORMATIONS */}
+          {/* 5. FORMATIONS */}
           {activeTab === 'trainings' && (
             <div className="space-y-6">
               <div>
@@ -713,82 +771,11 @@ export default function Home() {
                   </div>
                   <button className="mt-6 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 rounded-xl font-medium transition-all">Commencer le module</button>
                 </div>
-
-                <div className="bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
-                  <div>
-                    <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl flex items-center justify-center mb-4">
-                      <ShieldAlert className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-sm font-bold text-white mb-2">Alerte Précoce & Anticiper la Sécheresse</h3>
-                    <p className="text-xs text-slate-400">Comment interpréter les cartes NDVI et ajuster le calendrier des semailles.</p>
-                  </div>
-                  <button className="mt-6 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 rounded-xl font-medium transition-all">Commencer le module</button>
-                </div>
               </div>
             </div>
           )}
 
-          {/* 4. FORMULAIRE DE RISQUE */}
-          {activeTab === 'risks' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
-                <h2 className="text-sm font-bold text-white mb-4 flex items-center space-x-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span>Évaluation du Risque Agricole</span>
-                </h2>
-
-                <form onSubmit={(e) => { e.preventDefault(); setRiskAlertSent(true); }} className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Type de sol de votre parcelle</label>
-                    <select value={riskSoilType} onChange={(e) => setRiskSoilType(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white">
-                      <option value="sableux">Sableux (Dessèchement rapide)</option>
-                      <option value="argileux">Argileux (Rétention d'eau moyenne)</option>
-                      <option value="limoneux">Limoneux / Fertile</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">Source principale d'eau</label>
-                    <select value={riskWaterAccess} onChange={(e) => setRiskWaterAccess(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white">
-                      <option value="puits">Puits traditionnel</option>
-                      <option value="forage">Forage solaire</option>
-                      <option value="pluie">Dépendance pluviale exclusive</option>
-                    </select>
-                  </div>
-
-                  <button type="submit" className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2">
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Soumettre l'Évaluation du Risque</span>
-                  </button>
-                </form>
-
-                {riskAlertSent && (
-                  <div className="mt-4 p-3 bg-emerald-950/50 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-center space-x-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Évaluation transmise. Conseils d'atténuation générés !</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
-                <h2 className="text-sm font-bold text-white mb-4">Configuration des Alertes SMS / WhatsApp</h2>
-                <p className="text-xs text-slate-400 mb-4">Recevez une alerte automatique sur votre téléphone dès que l'indice NDVI baisse ou en cas de vague de chaleur à {user.city}.</p>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs">
-                    <span>Alerte Sécheresse par SMS ({user.phone_number})</span>
-                    <input type="checkbox" defaultChecked className="accent-emerald-500 w-4 h-4" />
-                  </div>
-                  <div className="flex items-center justify-between p-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-xs">
-                    <span>Bulletin météo hebdo par E-mail</span>
-                    <input type="checkbox" defaultChecked className="accent-emerald-500 w-4 h-4" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 5. PARAMÈTRES */}
+          {/* 6. PARAMÈTRES */}
           {activeTab === 'settings' && (
             <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl max-w-2xl">
               <h2 className="text-sm font-bold text-white mb-6 flex items-center space-x-2">
@@ -818,56 +805,12 @@ export default function Home() {
                     <span className="text-white font-medium">{user.address || "Non renseigné"}</span>
                   </div>
                 </div>
-
-                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800">
-                  <span className="text-slate-400 block mb-1">API Backend Connectée</span>
-                  <span className="text-emerald-400 font-mono">{API_URL}</span>
-                </div>
               </div>
             </div>
           )}
 
         </div>
       </div>
-
-      {/* Modal Nouvelle Parcelle */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl">
-            <h3 className="text-sm font-bold text-white mb-4">Ajouter une nouvelle parcelle</h3>
-            <form onSubmit={handleAddParcel} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Nom / Localisation</label>
-                <input type="text" required placeholder="ex: Zone Moussoro Sud" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Culture</label>
-                  <select value={newCrop} onChange={(e) => setNewCrop(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white">
-                    <option value="Sorgho">Sorgho</option>
-                    <option value="Maïs">Maïs</option>
-                    <option value="Sésame">Sésame</option>
-                    <option value="Arachide">Arachide</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Superficie (ha)</label>
-                  <input type="number" step="0.1" required placeholder="12.5" value={newArea} onChange={(e) => setNewArea(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">NDVI initial ({newNdvi})</label>
-                <input type="range" min="0.1" max="0.8" step="0.01" value={newNdvi} onChange={(e) => setNewNdvi(e.target.value)} className="w-full accent-emerald-500" />
-              </div>
-              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-800">
-                <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs">Annuler</button>
-                <button type="submit" disabled={submitting} className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold">{submitting ? "..." : "Enregistrer"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }
