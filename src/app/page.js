@@ -30,8 +30,11 @@ export default function Home() {
     setLoading(true);
     setAnalysisResult(null);
 
+    // Utilisation de l'URL d'API Render configurée dans l'environnement Netlify
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sahelclimate-api.onrender.com";
+
     try {
-      const response = await fetch("https://sahelclimate-backend.onrender.com/api/satellite-analysis", {
+      const response = await fetch(`${API_URL}/api/satellite-analysis`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -49,7 +52,7 @@ export default function Home() {
         alert("Erreur lors de l'analyse.");
       }
     } catch (error) {
-      // Diagnostic hydrique automatique de secours
+      // Mode secours si le backend Render est en veille (cold start)
       setAnalysisResult({
         status: "success",
         region: `${formData.country} (${formData.region})`,
