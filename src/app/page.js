@@ -5,24 +5,16 @@ import dynamic from "next/dynamic";
 import { 
   LayoutDashboard, 
   GraduationCap, 
-  Settings, 
   LogOut, 
   MapPin, 
-  Plus, 
   ShieldAlert, 
-  Droplets,
-  BookOpen,
   Send,
   Bot,
   Sparkles,
   TreePine,
   Layers,
   MessageSquare,
-  Users,
-  Phone,
-  ThumbsUp,
-  MessageCircle,
-  FileText
+  Users
 } from "lucide-react";
 
 const MapWithNoSSR = dynamic(() => import("./components/Map"), {
@@ -68,13 +60,6 @@ export default function Home() {
   const [selectedParcelId, setSelectedParcelId] = useState(1);
   const [diagnostic, setDiagnostic] = useState(null);
   const [drawnZone, setDrawnZone] = useState(null);
-
-  const [showForm, setShowForm] = useState(false);
-  const [newLocation, setNewLocation] = useState("");
-  const [newCrop, setNewCrop] = useState("Sorgho");
-  const [newArea, setNewArea] = useState("");
-  const [newNdvi, setNewNdvi] = useState("0.45");
-  const [submitting, setSubmitting] = useState(false);
 
   // --- Forum & Communauté ---
   const [posts, setPosts] = useState([
@@ -149,36 +134,6 @@ export default function Home() {
         "Rotation des cultures avec des légumineuses (Niébé/Sésame) pour fixer l'azote"
       ],
       impact: "Maintien de l'humidité du sol pendant 48h supplémentaires après arrosage."
-    },
-    {
-      id: 3,
-      title: "Arboriculture & Agroforesterie Sahélienne",
-      subtitle: "Plantation et entretien de l'Anacardier, Moringa et Citronniers",
-      badge: "Arbres & Climat",
-      color: "from-amber-500 to-orange-600",
-      description: "Guide pratique pour créer des haies vives brise-vent et cultiver des arbres fruitiers et fertilitaires résistants au climat chaud et sec.",
-      steps: [
-        "Préparation du trou de plantation (80x80 cm) enrichi en terreau/compost",
-        "Entretien spécifique de l'Anacardier et du Moringa pour la fixation des sols",
-        "Protection des jeunes plants contre le bétail (grillage/haies d'épineux)",
-        "Taille de formation et gestion de l'ombrage pour les cultures sous-jacentes"
-      ],
-      impact: "Création d'un microclimat frais, réduction de l'érosion du vent et revenus fruitiers annexes."
-    },
-    {
-      id: 4,
-      title: "Prévention des Ravageurs & Semences Adaptées",
-      subtitle: "Protéger le Sorgho, le Sésame et le Niébé sans produits chimiques",
-      badge: "Protection & Semences",
-      color: "from-purple-500 to-indigo-600",
-      description: "Solutions naturelles et choix de variétés de semences à cycle court adaptées aux saisons des pluies courtes et irrégulières.",
-      steps: [
-        "Sélection des variétés de graines certifiées résistantes à la sécheresse",
-        "Fabrication de biopesticides naturels (extraits de feuilles de Neem et piment)",
-        "Association intelligente des cultures (Sorgho + Niébé) pour piéger les insectes",
-        "Techniques de conservation des grains stockés en sacs hermétiques"
-      ],
-      impact: "Zéro perte de récolte post-récolte et diminution des frais d'intrants."
     }
   ];
 
@@ -298,13 +253,7 @@ export default function Home() {
         { name: "Anacardier (Noix de Cajou)", benefit: "Fixation des sols & Revenu stable à long terme" },
         { name: "Moringa Oleifera", benefit: "Croissance rapide & Propriétés nutritionnelles" },
         { name: "Citronniers / Manguiers", benefit: "Production fruitière saisonnière & Ombrage" }
-      ],
-      calendar: {
-        prep: "Mai - Juin : Traitement de la terre & enrichissement compost",
-        semis: "Juillet : Semis optimal dès les premières pluies",
-        irrigation: "Août - Septembre : Arrosage cibled en cas de poche de sécheresse",
-        recolte: "Octobre - Novembre : Récolte & Séchage"
-      }
+      ]
     });
   };
 
@@ -327,6 +276,7 @@ export default function Home() {
     setNewPostText("");
   };
 
+  // --- Gestion dynamique de l'Assistant IA avec Gemini ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -336,13 +286,17 @@ export default function Home() {
     setChatLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/v1/chat`, {
+      const res = await fetch('/api/chat', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg })
+        body: JSON.stringify({ prompt: userMsg })
       });
       const data = await res.json();
-      setChatMessages(prev => [...prev, { sender: "ai", text: data.reply || "Voici les recommandations agronomiques pour votre zone." }]);
+      if (data.success) {
+        setChatMessages(prev => [...prev, { sender: "ai", text: data.response }]);
+      } else {
+        throw new Error();
+      }
     } catch {
       setChatMessages(prev => [...prev, { sender: "ai", text: "En tant qu'agronome virtuel SahelClimate-AI, je vous conseille d'appliquer un paillage de 10 cm et de surveiller l'indice NDVI de votre parcelle pour anticiper le stress hydrique." }]);
     } finally {
@@ -539,9 +493,9 @@ export default function Home() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <a href="/admin" className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-lg font-semibold hover:bg-amber-500/20">
-              Admin ⚙️
-            </a>
+            <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-lg font-semibold">
+              Connecté 🟢
+            </span>
           </div>
         </header>
 
@@ -649,84 +603,46 @@ export default function Home() {
               <div className="space-y-4">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Publications de la Communauté</h3>
                 {posts.map((post) => (
-                  <div key={post.id} className="bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl space-y-3">
-                    <div className="flex justify-between items-start">
+                  <div key={post.id} className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl space-y-3">
+                    <div className="flex justify-between items-center">
                       <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 rounded-xl bg-emerald-600/20 text-emerald-400 font-bold flex items-center justify-center text-xs">
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
                           {post.author.charAt(0)}
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-white">{post.author}</h4>
-                          <p className="text-[10px] text-slate-400">{post.city} • Cultures : {post.crop}</p>
+                          <p className="text-xs font-bold text-white">{post.author}</p>
+                          <p className="text-[10px] text-slate-400">{post.city} • {post.crop}</p>
                         </div>
                       </div>
                       <span className="text-[10px] text-slate-500">{post.time}</span>
                     </div>
-
-                    <p className="text-xs text-slate-200 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/60">{post.text}</p>
-
-                    <div className="flex items-center space-x-6 text-xs text-slate-400 pt-1">
-                      <button className="flex items-center space-x-1.5 hover:text-emerald-400 transition-colors">
-                        <ThumbsUp className="w-3.5 h-3.5" />
-                        <span>{post.likes} J'aime</span>
-                      </button>
-                      <button className="flex items-center space-x-1.5 hover:text-emerald-400 transition-colors">
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>Commenter</span>
-                      </button>
-                    </div>
+                    <p className="text-xs text-slate-200 leading-relaxed">{post.text}</p>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* 3. ANNUAIRE DES AGRICULTEURS */}
-          {activeTab === 'network' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-bold text-white">Réseau & Annuaire des Agriculteurs</h2>
-                <p className="text-xs text-slate-400">Mettez-vous en contact avec d'autres producteurs sahéliens.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {farmersList.map((farmer) => (
-                  <div key={farmer.id} className="bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start mb-3">
-                        <h3 className="text-sm font-bold text-white">{farmer.name}</h3>
-                        <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-500/20">{farmer.city}</span>
-                      </div>
-                      <p className="text-xs text-slate-300 mb-1">🌱 <strong>Cultures :</strong> {farmer.crops}</p>
-                      <p className="text-xs text-slate-400 mb-4">📐 <strong>Superficie :</strong> {farmer.area}</p>
-                    </div>
-                    <a href={`tel:${farmer.phone}`} className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-semibold rounded-xl text-center transition flex items-center justify-center space-x-2">
-                      <span>📞 Contacter ({farmer.phone})</span>
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 4. ASSISTANT IA CLIMAT */}
+          {/* 3. ASSISTANT IA CLIMAT */}
           {activeTab === 'assistant' && (
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col h-[650px] p-6">
-              <div className="flex items-center space-x-3 border-b border-slate-800 pb-4 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center border border-teal-500/20">
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col h-[70vh]">
+              <div className="p-4 border-b border-slate-800 flex items-center space-x-3 bg-slate-900/80 rounded-t-2xl">
+                <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
                   <Bot className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-white">Assistant IA Agronome</h2>
-                  <p className="text-[10px] text-slate-400">Disponible 24/7 pour vos conseils sol, eau et climat</p>
+                  <h2 className="text-xs font-bold text-white">Assistant IA Agronome (Gemini 1.5)</h2>
+                  <p className="text-[10px] text-slate-400">Expert en sols sahéliens, gestion de l'eau et cultures au Tchad</p>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-md p-4 rounded-2xl text-xs leading-relaxed ${
-                      msg.sender === 'user' ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-slate-950 border border-slate-800 text-slate-200 rounded-bl-none'
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {chatMessages.map((msg, index) => (
+                  <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] rounded-2xl p-4 text-xs leading-relaxed ${
+                      msg.sender === 'user' 
+                        ? 'bg-emerald-600 text-white rounded-br-none' 
+                        : 'bg-slate-800/90 border border-slate-700/60 text-slate-200 rounded-bl-none'
                     }`}>
                       {msg.text}
                     </div>
@@ -734,55 +650,116 @@ export default function Home() {
                 ))}
                 {chatLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-slate-950 border border-slate-800 p-3 rounded-2xl text-xs text-slate-400 animate-pulse">
-                      L'IA analyse votre question...
+                    <div className="bg-slate-800 text-slate-400 rounded-2xl p-3 text-xs animate-pulse">
+                      L'agronome IA analyse votre demande...
                     </div>
                   </div>
                 )}
               </div>
 
-              <form onSubmit={handleSendMessage} className="mt-4 pt-3 border-t border-slate-800 flex space-x-3">
+              <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-800 bg-slate-900/80 rounded-b-2xl flex space-x-3">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Posez votre question sur les cultures, le climat, l'eau..."
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-teal-500"
+                  placeholder="Posez votre question sur l'irrigation, le sorgho, le maïs..."
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500"
                 />
-                <button type="submit" className="px-5 py-3 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl transition flex items-center space-x-2">
+                <button type="submit" disabled={chatLoading} className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2">
                   <Send className="w-4 h-4" />
-                  <span>Envoyer</span>
                 </button>
               </form>
             </div>
           )}
 
-          {/* 5. FORMATIONS & CONSEILS */}
+          {/* 4. FORMATIONS & CONSEILS */}
           {activeTab === 'trainings' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-bold text-white">Modules de Formation Pratique</h2>
-                <p className="text-xs text-slate-400">Formations adaptées aux agriculteurs et techniciens du Sahel.</p>
+              <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
+                <h2 className="text-sm font-bold text-white mb-2 flex items-center space-x-2">
+                  <GraduationCap className="w-4 h-4 text-emerald-400" />
+                  <span>Modules de Formation Pratique au Sahel</span>
+                </h2>
+                <p className="text-xs text-slate-400">Développez vos compétences agricoles avec des méthodes éprouvées pour résister à la sécheresse.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {modules.map((mod) => (
-                  <div key={mod.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+                {modules.map((m) => (
+                  <div key={m.id} className="bg-slate-900/40 border border-slate-800 p-6 rounded-2xl space-y-4 flex flex-col justify-between">
                     <div>
-                      <span className={`inline-block text-[11px] font-bold px-2.5 py-1 rounded-md text-white bg-gradient-to-r ${mod.color} mb-3`}>
-                        {mod.badge}
+                      <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-block mb-3">
+                        {m.badge}
                       </span>
-                      <h3 className="text-xl font-bold text-white mb-2">{mod.title}</h3>
-                      <p className="text-slate-400 text-xs mb-4 leading-relaxed">{mod.subtitle}</p>
+                      <h3 className="text-base font-bold text-white mb-1">{m.title}</h3>
+                      <p className="text-xs text-slate-400 mb-3">{m.subtitle}</p>
+                      <p className="text-xs text-slate-300 leading-relaxed">{m.description}</p>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedModule(mod)}
-                      className="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-2"
+                    <button 
+                      onClick={() => setSelectedModule(m)}
+                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl text-xs font-bold transition-all border border-slate-700 flex items-center justify-center space-x-2"
                     >
-                      <span>Commencer le module</span>
-                      <span>➔</span>
+                      <span>Voir le guide complet</span>
                     </button>
+                  </div>
+                ))}
+              </div>
+
+              {selectedModule && (
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full space-y-4 shadow-2xl">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-bold text-white">{selectedModule.title}</h3>
+                      <button onClick={() => setSelectedModule(null)} className="text-slate-400 hover:text-white text-sm font-bold">✕</button>
+                    </div>
+                    <p className="text-xs text-slate-300">{selectedModule.description}</p>
+                    
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Étapes Clés :</h4>
+                      {selectedModule.steps.map((step, idx) => (
+                        <div key={idx} className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 flex items-center space-x-2">
+                          <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">{idx + 1}</span>
+                          <span>{step}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-3.5 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-xs text-emerald-300">
+                      <strong>Impact attendu :</strong> {selectedModule.impact}
+                    </div>
+
+                    <button onClick={() => setSelectedModule(null)} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold">
+                      Fermer le guide
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 5. ANNUAIRE DES AGRICULTEURS */}
+          {activeTab === 'network' && (
+            <div className="space-y-6">
+              <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
+                <h2 className="text-sm font-bold text-white mb-2 flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-blue-400" />
+                  <span>Réseau & Annuaire des Agriculteurs Sahéliens</span>
+                </h2>
+                <p className="text-xs text-slate-400">Entrez en contact avec les producteurs et entrepreneurs membres de la plateforme.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {farmersList.map((f) => (
+                  <div key={f.id} className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-sm font-bold text-white">{f.name}</h3>
+                      <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-full font-semibold">{f.city}</span>
+                    </div>
+                    <div className="text-xs text-slate-300 space-y-1">
+                      <p>🌾 Cultures : <span className="text-white font-medium">{f.crops}</span></p>
+                      <p>📐 Superficie : <span className="text-white font-medium">{f.area}</span></p>
+                      <p>📞 Contact : <span className="text-emerald-400 font-mono font-bold">{f.phone}</span></p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -791,62 +768,6 @@ export default function Home() {
 
         </div>
       </div>
-
-      {/* Fenêtre modale des cours */}
-      {selectedModule && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl">
-            <button
-              onClick={() => setSelectedModule(null)}
-              className="absolute top-4 right-4 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
-            >
-              ✕
-            </button>
-
-            <div className="mb-6">
-              <span className={`inline-block text-[11px] font-bold px-2.5 py-1 rounded-md text-white bg-gradient-to-r ${selectedModule.color} mb-2`}>
-                {selectedModule.badge}
-              </span>
-              <h2 className="text-2xl font-black text-white">{selectedModule.title}</h2>
-              <p className="text-slate-400 text-xs mt-1">{selectedModule.subtitle}</p>
-            </div>
-
-            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 mb-6">
-              <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1">Résumé de la formation</h4>
-              <p className="text-slate-300 text-xs leading-relaxed">{selectedModule.description}</p>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Étapes de mise en pratique sur le terrain :</h4>
-              <div className="space-y-2.5">
-                {selectedModule.steps.map((step, idx) => (
-                  <div key={idx} className="flex items-start gap-3 bg-slate-800/50 p-3 rounded-lg border border-slate-800">
-                    <span className="bg-emerald-500 text-slate-950 font-black text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                      {idx + 1}
-                    </span>
-                    <span className="text-xs text-slate-200 leading-normal">{step}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => alert("✅ Fiche de cours téléchargée en mode hors-ligne pour votre téléphone !")}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-xs font-bold py-2.5 rounded-xl transition text-center"
-              >
-                📥 Télécharger la Fiche PDF
-              </button>
-              <button
-                onClick={() => setSelectedModule(null)}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl transition text-center"
-              >
-                Terminer le cours
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

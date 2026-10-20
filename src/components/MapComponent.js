@@ -1,47 +1,41 @@
-"use client";
-import { useState } from "react";
-import { MapContainer, TileLayer, Marker, Polygon, useMapEvents } from "react-leaflet";
-import L from "leaflet";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 
-// Correction de l'icône par défaut de Leaflet
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-});
+const MapContainer = dynamic(() => import("react-leaflet").then((m) => m.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import("react-leaflet").then((m) => m.TileLayer), { ssr: false });
+const Marker = dynamic(() => import("react-leaflet").then((m) => m.Marker), { ssr: false });
+const Popup = dynamic(() => import("react-leaflet").then((m) => m.Popup), { ssr: false });
 
-function LocationMarker({ onPointAdded }) {
-  useMapEvents({
-    click(e) {
-      onPointAdded(e.latlng);
-    },
-  });
-  return null;
-}
+export default function MapComponent() {
+  const [isMounted, setIsMounted] = useState(false);
 
-export default function MapComponent({ points, setPoints }) {
-  // Coordonnées centrées sur N'Djamena, Tchad
-  const center = [12.1348, 15.0557];
+  useEffect(() => {
+    setIsMounted(true);
+    import("leaflet").then((L) => {
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+    });
+  }, []);
 
-  const handlePointAdd = (latlng) => {
-    setPoints((prev) => [...prev, { latitude: latlng.lat, longitude: latlng.lng }]);
-  };
-
-  const polygonCoordinates = points.map((p) => [p.latitude, p.longitude]);
+  if (!isMounted) {
+    return (
+      <div className="w-full h-[400px] bg-slate-900/60 animate-pulse rounded-2xl flex items-center justify-center text-slate-400">
+        Chargement de la carte interactive...
+      </div>
+    );
+  }
 
   return (
-    <div className="h-[400px] w-full rounded-xl overflow-hidden border border-slate-700 shadow-lg">
-      <MapContainer center={center} zoom={13} style={{ height: "100%", width: "100%" }}>
+    <div className="w-full h-[400px] rounded-2xl overflow-hidden border border-slate-700">
+      <MapContainer center={[12.1348, 15.0557]} zoom={6} style={{ height: "100%", width: "100%" }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
-        <LocationMarker onPointAdded={handlePointAdd} />
-        {points.map((pt, idx) => (
-          <Marker key={idx} position={[pt.latitude, pt.longitude]} />
-        ))}
-        {points.length >= 3 && <Polygon positions={polygonCoordinates} color="#16a34a" />}
       </MapContainer>
     </div>
   );
