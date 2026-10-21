@@ -1,773 +1,176 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
-import { 
-  LayoutDashboard, 
-  GraduationCap, 
-  LogOut, 
-  MapPin, 
-  ShieldAlert, 
-  Send,
-  Bot,
-  Sparkles,
-  TreePine,
-  Layers,
-  MessageSquare,
-  Users
-} from "lucide-react";
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
 
-const MapWithNoSSR = dynamic(() => import("./components/Map"), {
+const MapComponent = dynamic(() => import('../components/MapComponent'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[400px] bg-slate-900/60 animate-pulse rounded-2xl border border-slate-800 flex items-center justify-center text-xs text-slate-500">
-      Chargement de la carte interactive & module de tracé...
+    <div className="w-full h-[400px] bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-emerald-400 font-bold border border-emerald-500/30 p-4">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500 mb-3"></div>
+      Chargement du SIG & Imagerie Satellite Esri...
     </div>
-  ),
+  )
 });
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://sahelclimate-api.onrender.com";
-
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("dashboard");
-  
-  // --- Authentification ---
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('sahel_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) { return null; }
-  });
+  const [activeModule, setActiveModule] = useState(null);
 
-  const [fullName, setFullName] = useState('Moustapha Ali Hamat');
-  const [phone, setPhone] = useState('+23560646072');
-  const [city, setCity] = useState('Moussoro');
-  const [address, setAddress] = useState('Quartier Ouest');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('123456');
-  const [confirmPassword, setConfirmPassword] = useState('123456');
-  const [channel, setChannel] = useState('sms');
-
-  const [authStep, setAuthStep] = useState('register');
-  const [codeInput, setCodeInput] = useState('123456');
-  const [generatedCode, setGeneratedCode] = useState('123456');
-  const [targetDestination, setTargetDestination] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-
-  // --- Parcelles & Tracé de Zone ---
-  const [parcels, setParcels] = useState([]);
-  const [selectedParcelId, setSelectedParcelId] = useState(1);
-  const [diagnostic, setDiagnostic] = useState(null);
-  const [drawnZone, setDrawnZone] = useState(null);
-
-  // --- Forum & Communauté ---
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      author: "Mahamat Salhedine",
-      city: "Barh El Gazel (Moussoro)",
-      crop: "Sorgho & Sésame",
-      text: "Grâce à la recommandation d'irrigation de SahelClimate-AI, j'ai réduit l'utilisation d'eau de mon puits de 30% tout en gardant des feuilles bien vertes !",
-      likes: 12,
-      time: "Il y a 2 heures"
-    },
-    {
-      id: 2,
-      author: "Khadidja Ousmane",
-      city: "N'Djamena Nord",
-      crop: "Maïs & Maraîchage",
-      text: "L'outil de tracé de zone m'a permis de calculer mes 4.5 hectares avec précision et de savoir exactement quelles zones nécessitaient du compost.",
-      likes: 8,
-      time: "Il y a 5 heures"
-    }
-  ]);
-  const [newPostText, setNewPostText] = useState("");
-
-  // --- Annuaire des Agriculteurs ---
-  const [farmersList, setFarmersList] = useState([
-    { id: 1, name: "Moustapha Ali Hamat", city: "Moussoro", phone: "+23560646072", crops: "Sorgho, Sésame, Anacardier", area: "12.5 ha" },
-    { id: 2, name: "Mahamat Salhedine", city: "Moussoro", phone: "+23566123456", crops: "Sorgho Rouge, Niébé", area: "8.0 ha" },
-    { id: 3, name: "Khadidja Ousmane", city: "N'Djamena", phone: "+23599887766", crops: "Maïs, Arachide, Citronniers", area: "15.2 ha" },
-    { id: 4, name: "Ibrahim Abakar", city: "Pala", phone: "+23563112233", crops: "Coton, Sésame, Moringa", area: "20.0 ha" }
-  ]);
-
-  // --- Assistant IA ---
-  const [chatMessages, setChatMessages] = useState([
-    {
-      sender: "ai",
-      text: "Bonjour ! Je suis l'Assistant IA Agronome de SahelClimate-AI. Tracez votre champ sur la carte ou posez-moi vos questions sur la capacité de votre terre."
-    }
-  ]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-
-  // --- Modules de formation ---
-  const [selectedModule, setSelectedModule] = useState(null);
-  const modules = [
-    {
-      id: 1,
-      title: "Techniques d'Irrigation Goutte-à-Goutte",
-      subtitle: "Réduire la consommation d'eau de 60% dans les zones arides",
-      badge: "Eau & Irrigation",
-      color: "from-cyan-500 to-blue-600",
-      description: "Apprenez à installer et entretenir un système d'irrigation au goutte-à-goutte économique pour préserver la ressource en eau dans les zones arides comme Moussoro, N'Djamena et le Barh El Gazel.",
-      steps: [
-        "Choix des tuyaux micro-perforés et réservoirs surélevés (gravité)",
-        "Filtration de l'eau pour éviter le bouchage par le sable du Sahel",
-        "Calcul du calendrier d'arrosage : Tôt le matin (05h-07h) ou le soir (18h-20h)",
-        "Dosage exact par pied de culture (Maïs, Sorgho, Maraîchage)"
-      ],
-      impact: "Économie de 60% d'eau + augmentation de 35% du rendement des récoltes."
-    },
-    {
-      id: 2,
-      title: "Gestion & Régénération des Sols",
-      subtitle: "Compost organique et paillage pour maintenir l'humidité",
-      badge: "Sols & Fertilité",
-      color: "from-emerald-500 to-green-600",
-      description: "Techniques simples de compostage et de paillage pour enrichir les sols sablonneux du Sahel et empêcher l'évaporation rapide de l'eau.",
-      steps: [
-        "Technique des fosses compostières à base de fumier local et résidus récoltés",
-        "Application du paillage organique (paille, tontes) de 5 à 10 cm autour des plants",
-        "Utilisation des demi-lunes et zaï pour capturer l'eau de pluie dans les champs",
-        "Rotation des cultures avec des légumineuses (Niébé/Sésame) pour fixer l'azote"
-      ],
-      impact: "Maintien de l'humidité du sol pendant 48h supplémentaires après arrosage."
-    }
-  ];
-
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
-    if (password !== confirmPassword) return setAuthError("Les mots de passe ne correspondent pas !");
-    setAuthLoading(true);
-    setTargetDestination(channel === 'sms' ? phone : (email || phone));
-
-    try {
-      const res = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name: fullName,
-          phone_number: phone,
-          city: city,
-          address: address,
-          email: email,
-          password: password,
-          delivery_channel: channel
-        })
-      });
-      const data = await res.json();
-      if (data.verification_code) {
-        setGeneratedCode(data.verification_code);
-        setCodeInput(data.verification_code);
-      }
-    } catch {
-      setGeneratedCode("123456");
-      setCodeInput("123456");
-    } finally {
-      setAuthLoading(false);
-      setAuthStep('verify');
-    }
-  };
-
-  const handleVerifySubmit = (e) => {
-    e.preventDefault();
-    const newUser = { full_name: fullName, phone_number: phone, city: city, address: address, email: email };
-    try { localStorage.setItem('sahel_user', JSON.stringify(newUser)); } catch (e) {}
-    setUser(newUser);
-    
-    setFarmersList(prev => [
-      { id: Date.now(), name: fullName, city: city, phone: phone, crops: "Sorgho, Maïs", area: "10 ha" },
-      ...prev
-    ]);
-  };
-
-  const handleLogout = () => {
-    try { localStorage.removeItem('sahel_user'); } catch (e) {}
-    setUser(null);
-    setAuthStep('register');
-  };
-
-  const fetchParcels = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/v1/parcels`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setParcels(Array.isArray(data) ? data : []);
-    } catch {
-      setParcels([
-        { id: 1, location_name: "Parcelle N'Djamena Nord", area_ha: 15.2, crop_type: "Maïs", ndvi_value: 0.52 },
-        { id: 2, location_name: "Zone Bahr El Gazel", area_ha: 8.7, crop_type: "Sorgho", ndvi_value: 0.38 }
-      ]);
-    }
-  }, []);
-
-  const fetchDiagnostic = useCallback(async (id) => {
-    try {
-      const res = await fetch(`${API_URL}/api/v1/parcels/${id}/diagnostic`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setDiagnostic(data);
-    } catch {
-      if (id === 1) {
-        setDiagnostic({
-          parcel_id: 1,
-          location_name: "Parcelle N'Djamena Nord",
-          crop_type: "Maïs",
-          area_ha: 15.2,
-          ndvi_value: 0.52,
-          health_status: "Végétation Vigoureuse",
-          drought_risk: "Faible",
-          irrigation_recommendation: "Maintenir l'arrosage régulier (10-12 mm/semaine)"
-        });
-      } else {
-        setDiagnostic({
-          parcel_id: 2,
-          location_name: "Zone Bahr El Gazel",
-          crop_type: "Sorgho",
-          area_ha: 8.7,
-          ndvi_value: 0.38,
-          health_status: "Stress Hydrique Modéré",
-          drought_risk: "Moyen",
-          irrigation_recommendation: "Augmenter la fréquence d'irrigation (18-20 mm/semaine)"
-        });
-      }
-    }
-  }, []);
-
-  useEffect(() => { if (user) fetchParcels(); }, [user, fetchParcels]);
-  useEffect(() => { if (user && selectedParcelId) fetchDiagnostic(selectedParcelId); }, [user, selectedParcelId, fetchDiagnostic]);
-
-  const handleAreaDrawn = (zone) => {
-    setDrawnZone({
-      area_ha: zone.area_ha,
-      soil_capacity: "Terre Limono-Sableuse Sahélienne (Haute productivité avec apport organique)",
-      water_retention: "Moyenne (Ressources souterraines accessibles)",
-      crops: [
-        { name: "Sorgho Rouge / Blanc", yield: "Rendement estimé : 2.8 t/ha", cycle: "Cycle court (75 jours)" },
-        { name: "Sésame Biologique", yield: "Rendement estimé : 1.2 t/ha", cycle: "Très forte valeur marchande" },
-        { name: "Arachide", yield: "Rendement estimé : 2.0 t/ha", cycle: "Enrichit la terre en Azote naturel" }
-      ],
-      trees_and_fruits: [
-        { name: "Anacardier (Noix de Cajou)", benefit: "Fixation des sols & Revenu stable à long terme" },
-        { name: "Moringa Oleifera", benefit: "Croissance rapide & Propriétés nutritionnelles" },
-        { name: "Citronniers / Manguiers", benefit: "Production fruitière saisonnière & Ombrage" }
+  const modulesData = {
+    secheresse: {
+      title: "🌤️ Détection Sécheresse & Climat",
+      partner: "Agrix Tech / IA Agri",
+      content: [
+        { label: "Indice de Précipitation (SPI)", val: "-0.85 (Sécheresse Modérée)" },
+        { label: "Humidité des Sols", val: "18% - Nécessite Irrigation de soutien" },
+        { label: "Prévision Météo (N'Djamena/Sahel)", val: "Ensoleillé, 38°C, Vent Nord-Est 15 km/h" },
+        { label: "Préconisation IA", val: "Planifier l'irrigation goutte-à-goutte tôt le matin (05h00) pour réduire l'évaporation de 40%." }
       ]
-    });
-  };
-
-  const handleCreatePost = (e) => {
-    e.preventDefault();
-    if (!newPostText.trim()) return;
-
-    setPosts([
-      {
-        id: Date.now(),
-        author: user.full_name,
-        city: user.city,
-        crop: "Cultures Sahéliennes",
-        text: newPostText,
-        likes: 1,
-        time: "À l'instant"
-      },
-      ...posts
-    ]);
-    setNewPostText("");
-  };
-
-  // --- Gestion dynamique de l'Assistant IA avec Gemini ---
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-    const userMsg = chatInput;
-    setChatMessages(prev => [...prev, { sender: "user", text: userMsg }]);
-    setChatInput("");
-    setChatLoading(true);
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: userMsg })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setChatMessages(prev => [...prev, { sender: "ai", text: data.response }]);
-      } else {
-        throw new Error();
-      }
-    } catch {
-      setChatMessages(prev => [...prev, { sender: "ai", text: "En tant qu'agronome virtuel SahelClimate-AI, je vous conseille d'appliquer un paillage de 10 cm et de surveiller l'indice NDVI de votre parcelle pour anticiper le stress hydrique." }]);
-    } finally {
-      setChatLoading(false);
+    },
+    arboriculture: {
+      title: "🌳 Arboriculture & Agroforesterie",
+      partner: "Haller Farmers",
+      content: [
+        { label: "Anacardier (Haute Rentabilité)", val: "Plantation en quinconces (8m x 8m). Paillage organique obligatoire à la base." },
+        { label: "Moringa Oleifera", val: "Fixation de l'azote atmosphérique. Densité : 2500 plants/ha pour production de feuilles." },
+        { label: "Citronniers & Agrumes", val: "Protection contre les vents secs avec des haies brise-vent d'Acacia." },
+        { label: "Technique de Reverdissement", val: "Réalisation de demi-lunes pour stocker l'eau de pluie au pied des arbres." }
+      ]
+    },
+    calendrier: {
+      title: "📅 Calendrier Agricole Intelligent",
+      partner: "Plantix / FAO",
+      content: [
+        { label: "Fenêtre Idéale de Semis", val: "15 Juin - 05 Juillet (Dès la 1ère grande pluie de >20mm)" },
+        { label: "Fertilisation Biologique", val: "Apport de compost mûr (5t/ha) 15 jours avant le labour." },
+        { label: "Période de Sarclage", val: "1er sarclage à J+15 après levée, 2nd sarclage à J+35." },
+        { label: "Récolte & Stockage", val: "Octobre - Novembre. Utilisation de sacs hermétiques PICS sans pesticides." }
+      ]
+    },
+    formations: {
+      title: "📚 Formations & Guides Pratiques",
+      partner: "Access Agriculture",
+      content: [
+        { label: "Guide 1 : Compostage Rapide", val: "Technique en tas surélevé avec résidus de culture et fientes d'élevage (21 jours)." },
+        { label: "Guide 2 : Gestion Intégrée des Ravageurs", val: "Utilisation d'extraits de feuilles de Neem contre la chenille légionnaire." },
+        { label: "Guide 3 : Conservation des Eaux et Sols", val: "Tracé de lignes de niveau et fabrication de diguettes en pierres sèches." },
+        { label: "Fiche Vocale SMS / audio", val: "Module prêt pour diffusion en langue locale (Foulfouldé, Arabe Tchadien)." }
+      ]
     }
   };
-
-  if (!user) {
-    return (
-      <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6 font-sans">
-        <div className="w-full max-w-lg bg-slate-900/90 border border-slate-800/80 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl mb-3 text-emerald-400">
-              <ShieldAlert className="w-7 h-7" />
-            </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-teal-200 bg-clip-text text-transparent">SahelClimate-AI</h1>
-            <p className="text-xs text-slate-400 mt-1">Plateforme Intelligence Climat & Réseau Agricole Sahélien</p>
-          </div>
-
-          {authStep === 'register' ? (
-            <form onSubmit={handleRegisterSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Nom complet *</label>
-                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Téléphone *</label>
-                  <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Ville / Region *</label>
-                  <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Adresse</label>
-                  <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">E-mail</label>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Mot de passe *</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Confirmer *</label>
-                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-              </div>
-
-              <div className="bg-slate-950/50 p-3.5 rounded-xl border border-slate-800/80">
-                <label className="block text-xs font-semibold text-slate-400 mb-2">Canal de Réception SMS / E-mail :</label>
-                <div className="flex space-x-6 text-xs">
-                  <label className="flex items-center space-x-2 cursor-pointer text-slate-300">
-                    <input type="radio" name="channel" value="sms" checked={channel === 'sms'} onChange={() => setChannel('sms')} className="accent-emerald-500" />
-                    <span>📱 SMS</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer text-slate-300">
-                    <input type="radio" name="channel" value="email" checked={channel === 'email'} onChange={() => setChannel('email')} className="accent-emerald-500" />
-                    <span>📧 E-mail</span>
-                  </label>
-                </div>
-              </div>
-
-              {authError && <p className="text-rose-400 text-xs text-center">{authError}</p>}
-
-              <button type="submit" disabled={authLoading} className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-950/50">
-                {authLoading ? "Traitement..." : "S'inscrire & Rejoindre la Communauté"}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifySubmit} className="space-y-5">
-              <h2 className="text-sm font-semibold text-slate-200 text-center">🔑 Saisir le Code d'Accès</h2>
-              <p className="text-xs text-slate-400 text-center">Envoyé par <span className="text-emerald-400 font-bold">{channel.toUpperCase()}</span> à : <span className="text-white">{targetDestination}</span></p>
-
-              <div className="bg-emerald-950/30 border border-emerald-500/30 p-4 rounded-xl text-center">
-                <span className="text-xs text-slate-400 block mb-1">Code de confirmation :</span>
-                <span className="text-3xl font-mono font-bold text-emerald-400 tracking-widest">{generatedCode}</span>
-              </div>
-
-              <input type="text" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} required className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 text-center text-2xl font-mono tracking-widest text-white focus:border-emerald-500 focus:outline-none" />
-
-              <button type="submit" className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all">
-                Accéder à SahelClimate-AI
-              </button>
-            </form>
-          )}
-        </div>
-      </main>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
-      
-      {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 bg-slate-900/80 border-r border-slate-800/80 p-5 flex flex-col justify-between hidden md:flex">
-        <div>
-          <div className="flex items-center space-x-3 mb-8 px-2">
-            <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center text-emerald-400">
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-bold text-sm text-white">SahelClimate</h1>
-              <p className="text-[10px] text-slate-400">v2.5 • Network Edition</p>
-            </div>
-          </div>
-
-          <nav className="space-y-1.5">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'dashboard' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span>Tableau de bord & Carte</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('community')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'community' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
-            >
-              <MessageSquare className="w-4 h-4 text-emerald-400" />
-              <span>Espace Communauté & Avis</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('network')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'network' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
-            >
-              <Users className="w-4 h-4 text-blue-400" />
-              <span>Annuaire Agriculteurs</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('assistant')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'assistant' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
-            >
-              <Bot className="w-4 h-4 text-teal-400" />
-              <span>Assistant IA Climat</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('trainings')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'trainings' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              <span>Formations & Conseils</span>
-            </button>
-          </nav>
+    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans max-w-4xl mx-auto pb-24">
+      {/* En-tête de l'application */}
+      <header className="mb-6 text-center border-b border-slate-800 pb-4">
+        <div className="inline-block px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-semibold mb-2 border border-emerald-500/20">
+          🟢 BAMA Startup 2026 - Plateforme Officielle
         </div>
+        <h1 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">
+          SahelClimate<span className="text-emerald-400">-IA</span>
+        </h1>
+        <p className="text-xs md:text-sm text-slate-400 mt-1">
+          Système d'Information Géographique & IA Agronomique pour le Sahel
+        </p>
+      </header>
 
-        <div className="pt-4 border-t border-slate-800/80">
-          <div className="flex items-center space-x-3 p-2 mb-3 bg-slate-950/60 rounded-xl border border-slate-800/50">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
-              {user.full_name?.charAt(0)}
+      {/* VRAIE CARTE SATELLITE ESRI */}
+      <section className="mb-8">
+        <h2 className="text-lg font-bold text-emerald-400 mb-2 flex items-center gap-2">
+          <span>🛰️</span> SIG & Imagerie Satellite en Temps Réel
+        </h2>
+        <MapComponent />
+      </section>
+
+      {/* MODULES INTERACTIFS */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-bold text-slate-200 mb-2">
+          💡 Services Agronomiques & Formations
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Module 1 */}
+          <button 
+            onClick={() => setActiveModule(activeModule === 'secheresse' ? null : 'secheresse')}
+            className={`p-4 rounded-xl border text-left transition-all ${
+              activeModule === 'secheresse' ? 'bg-slate-800 border-emerald-500 shadow-lg' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono">Agrix Tech / IA Agri</span>
+              <span className="text-xs text-emerald-400 font-bold">{activeModule === 'secheresse' ? '▲ Masquer' : '▼ Ouvrir'}</span>
             </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-medium text-white truncate">{user.full_name}</p>
-              <p className="text-[10px] text-slate-400 truncate">{user.city}</p>
+            <h3 className="font-bold text-white text-base">Détection Sécheresse & Climat</h3>
+            <p className="text-xs text-slate-400 mt-1">Analyse météo, prévisions d'irrigation et alertes sécheresse.</p>
+          </button>
+
+          {/* Module 2 */}
+          <button 
+            onClick={() => setActiveModule(activeModule === 'arboriculture' ? null : 'arboriculture')}
+            className={`p-4 rounded-xl border text-left transition-all ${
+              activeModule === 'arboriculture' ? 'bg-slate-800 border-emerald-500 shadow-lg' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono">Haller Farmers</span>
+              <span className="text-xs text-emerald-400 font-bold">{activeModule === 'arboriculture' ? '▲ Masquer' : '▼ Ouvrir'}</span>
             </div>
-          </div>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-medium transition-all">
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Déconnexion</span>
+            <h3 className="font-bold text-white text-base">Arboriculture & Agroforesterie</h3>
+            <p className="text-xs text-slate-400 mt-1">Implantation d'Anacardiers, Moringa et reverdissement des terres.</p>
+          </button>
+
+          {/* Module 3 */}
+          <button 
+            onClick={() => setActiveModule(activeModule === 'calendrier' ? null : 'calendrier')}
+            className={`p-4 rounded-xl border text-left transition-all ${
+              activeModule === 'calendrier' ? 'bg-slate-800 border-emerald-500 shadow-lg' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono">Plantix / FAO</span>
+              <span className="text-xs text-emerald-400 font-bold">{activeModule === 'calendrier' ? '▲ Masquer' : '▼ Ouvrir'}</span>
+            </div>
+            <h3 className="font-bold text-white text-base">Calendrier Agricole Intelligent</h3>
+            <p className="text-xs text-slate-400 mt-1">Fenêtres optimales de semis, fertilisation et récolte.</p>
+          </button>
+
+          {/* Module 4 */}
+          <button 
+            onClick={() => setActiveModule(activeModule === 'formations' ? null : 'formations')}
+            className={`p-4 rounded-xl border text-left transition-all ${
+              activeModule === 'formations' ? 'bg-slate-800 border-emerald-500 shadow-lg' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono">Access Agriculture</span>
+              <span className="text-xs text-emerald-400 font-bold">{activeModule === 'formations' ? '▲ Masquer' : '▼ Ouvrir'}</span>
+            </div>
+            <h3 className="font-bold text-white text-base">Formations & Guides Pratiques</h3>
+            <p className="text-xs text-slate-400 mt-1">Modules de formation pas à pas pour les producteurs.</p>
           </button>
         </div>
-      </aside>
 
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        <header className="h-16 border-b border-slate-800/80 px-6 flex items-center justify-between bg-slate-900/40 backdrop-blur-md sticky top-0 z-40">
-          <div className="flex items-center space-x-3">
-            <span className="text-xs text-slate-400">SahelClimate /</span>
-            <span className="text-xs font-semibold text-white capitalize">{activeTab}</span>
+        {/* PANNEAU D'AFFICHAGE DU MODULE SÉLECTIONNÉ */}
+        {activeModule && modulesData[activeModule] && (
+          <div className="mt-4 p-5 bg-slate-900 border-2 border-emerald-500/50 rounded-2xl shadow-2xl animate-fade-in">
+            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-emerald-400">{modulesData[activeModule].title}</h3>
+              <span className="text-xs bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full border border-emerald-500/30">
+                Source : {modulesData[activeModule].partner}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {modulesData[activeModule].content.map((item, idx) => (
+                <div key={idx} className="bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.label}</div>
+                  <div className="text-sm font-semibold text-slate-100 mt-0.5">{item.val}</div>
+                </div>
+              ))}
+            </div>
           </div>
-
-          <div className="flex items-center space-x-3">
-            <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-lg font-semibold">
-              Connecté 🟢
-            </span>
-          </div>
-        </header>
-
-        <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
-          
-          {/* 1. TABLEAU DE BORD & CARTE */}
-          {activeTab === 'dashboard' && (
-            <>
-              <div className="bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl backdrop-blur-sm">
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
-                    <MapPin className="w-4 h-4 text-emerald-400" />
-                    <span>Cartographie & Outil de Tracé de Champ</span>
-                  </h2>
-                  <span className="text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full font-medium">
-                    ✏️ Utilisez l'icône polygone pour tracer votre zone et calculer l'eau
-                  </span>
-                </div>
-                
-                <MapWithNoSSR 
-                  parcels={parcels} 
-                  selectedParcelId={selectedParcelId} 
-                  onSelectParcel={(id) => setSelectedParcelId(id)}
-                  onAreaDrawn={handleAreaDrawn}
-                />
-              </div>
-
-              {/* RÉSULTAT DU TRACÉ ET CAPACITÉ DU SOL */}
-              {drawnZone && (
-                <div className="bg-gradient-to-br from-emerald-950/40 via-slate-900/90 to-slate-950 border border-emerald-500/40 p-6 rounded-2xl shadow-xl space-y-6">
-                  <div className="flex justify-between items-start border-b border-emerald-500/20 pb-4">
-                    <div>
-                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block mb-1">Analyse de la Zone Tracée</span>
-                      <h3 className="text-xl font-bold text-white flex items-center space-x-2">
-                        <Layers className="w-5 h-5 text-emerald-400" />
-                        <span>Superficie Détectée : {drawnZone.area_ha} Hectares</span>
-                      </h3>
-                      <p className="text-xs text-slate-300 mt-1">{drawnZone.soil_capacity}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
-                        <Sparkles className="w-4 h-4" />
-                        <span>Cultures & Aliments à Haute Production</span>
-                      </h4>
-                      <div className="space-y-2 text-xs">
-                        {drawnZone.crops.map((c, idx) => (
-                          <div key={idx} className="p-2.5 bg-slate-900 rounded-lg border border-slate-800/80">
-                            <p className="font-semibold text-white">{c.name}</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5">{c.yield} • {c.cycle}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800">
-                      <h4 className="text-xs font-bold text-teal-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
-                        <TreePine className="w-4 h-4" />
-                        <span>Arbres & Arbres Fruitiers Recommandés</span>
-                      </h4>
-                      <div className="space-y-2 text-xs">
-                        {drawnZone.trees_and_fruits.map((t, idx) => (
-                          <div key={idx} className="p-2.5 bg-slate-900 rounded-lg border border-slate-800/80">
-                            <p className="font-semibold text-white">{t.name}</p>
-                            <p className="text-[11px] text-slate-400 mt-0.5">{t.benefit}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* 2. ESPACE COMMUNAUTÉ */}
-          {activeTab === 'community' && (
-            <div className="space-y-6">
-              <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
-                <h2 className="text-sm font-bold text-white mb-2 flex items-center space-x-2">
-                  <MessageSquare className="w-4 h-4 text-emerald-400" />
-                  <span>Publier un Conseil ou une Recommandation</span>
-                </h2>
-                <p className="text-xs text-slate-400 mb-4">Partagez vos retours d'expérience sur l'utilisation de l'application et vos réussites.</p>
-
-                <form onSubmit={handleCreatePost} className="space-y-3">
-                  <textarea
-                    rows="3"
-                    value={newPostText}
-                    onChange={(e) => setNewPostText(e.target.value)}
-                    placeholder="Exemple : J'ai appliqué le paillage sur mon champ après le diagnostic NDVI..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                  <div className="flex justify-end">
-                    <button type="submit" className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2">
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Publier mon message</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Publications de la Communauté</h3>
-                {posts.map((post) => (
-                  <div key={post.id} className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl space-y-3">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
-                          {post.author.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-white">{post.author}</p>
-                          <p className="text-[10px] text-slate-400">{post.city} • {post.crop}</p>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-slate-500">{post.time}</span>
-                    </div>
-                    <p className="text-xs text-slate-200 leading-relaxed">{post.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 3. ASSISTANT IA CLIMAT */}
-          {activeTab === 'assistant' && (
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col h-[70vh]">
-              <div className="p-4 border-b border-slate-800 flex items-center space-x-3 bg-slate-900/80 rounded-t-2xl">
-                <div className="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-xs font-bold text-white">Assistant IA Agronome (Gemini 1.5)</h2>
-                  <p className="text-[10px] text-slate-400">Expert en sols sahéliens, gestion de l'eau et cultures au Tchad</p>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {chatMessages.map((msg, index) => (
-                  <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl p-4 text-xs leading-relaxed ${
-                      msg.sender === 'user' 
-                        ? 'bg-emerald-600 text-white rounded-br-none' 
-                        : 'bg-slate-800/90 border border-slate-700/60 text-slate-200 rounded-bl-none'
-                    }`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-slate-800 text-slate-400 rounded-2xl p-3 text-xs animate-pulse">
-                      L'agronome IA analyse votre demande...
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-800 bg-slate-900/80 rounded-b-2xl flex space-x-3">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Posez votre question sur l'irrigation, le sorgho, le maïs..."
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500"
-                />
-                <button type="submit" disabled={chatLoading} className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-2">
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* 4. FORMATIONS & CONSEILS */}
-          {activeTab === 'trainings' && (
-            <div className="space-y-6">
-              <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
-                <h2 className="text-sm font-bold text-white mb-2 flex items-center space-x-2">
-                  <GraduationCap className="w-4 h-4 text-emerald-400" />
-                  <span>Modules de Formation Pratique au Sahel</span>
-                </h2>
-                <p className="text-xs text-slate-400">Développez vos compétences agricoles avec des méthodes éprouvées pour résister à la sécheresse.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {modules.map((m) => (
-                  <div key={m.id} className="bg-slate-900/40 border border-slate-800 p-6 rounded-2xl space-y-4 flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-block mb-3">
-                        {m.badge}
-                      </span>
-                      <h3 className="text-base font-bold text-white mb-1">{m.title}</h3>
-                      <p className="text-xs text-slate-400 mb-3">{m.subtitle}</p>
-                      <p className="text-xs text-slate-300 leading-relaxed">{m.description}</p>
-                    </div>
-
-                    <button 
-                      onClick={() => setSelectedModule(m)}
-                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-xl text-xs font-bold transition-all border border-slate-700 flex items-center justify-center space-x-2"
-                    >
-                      <span>Voir le guide complet</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {selectedModule && (
-                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full space-y-4 shadow-2xl">
-                    <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold text-white">{selectedModule.title}</h3>
-                      <button onClick={() => setSelectedModule(null)} className="text-slate-400 hover:text-white text-sm font-bold">✕</button>
-                    </div>
-                    <p className="text-xs text-slate-300">{selectedModule.description}</p>
-                    
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Étapes Clés :</h4>
-                      {selectedModule.steps.map((step, idx) => (
-                        <div key={idx} className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 flex items-center space-x-2">
-                          <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">{idx + 1}</span>
-                          <span>{step}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="p-3.5 bg-emerald-950/30 border border-emerald-500/30 rounded-xl text-xs text-emerald-300">
-                      <strong>Impact attendu :</strong> {selectedModule.impact}
-                    </div>
-
-                    <button onClick={() => setSelectedModule(null)} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold">
-                      Fermer le guide
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 5. ANNUAIRE DES AGRICULTEURS */}
-          {activeTab === 'network' && (
-            <div className="space-y-6">
-              <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl">
-                <h2 className="text-sm font-bold text-white mb-2 flex items-center space-x-2">
-                  <Users className="w-4 h-4 text-blue-400" />
-                  <span>Réseau & Annuaire des Agriculteurs Sahéliens</span>
-                </h2>
-                <p className="text-xs text-slate-400">Entrez en contact avec les producteurs et entrepreneurs membres de la plateforme.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {farmersList.map((f) => (
-                  <div key={f.id} className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl space-y-3">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-sm font-bold text-white">{f.name}</h3>
-                      <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-full font-semibold">{f.city}</span>
-                    </div>
-                    <div className="text-xs text-slate-300 space-y-1">
-                      <p>🌾 Cultures : <span className="text-white font-medium">{f.crops}</span></p>
-                      <p>📐 Superficie : <span className="text-white font-medium">{f.area}</span></p>
-                      <p>📞 Contact : <span className="text-emerald-400 font-mono font-bold">{f.phone}</span></p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-        </div>
-      </div>
-    </div>
+        )}
+      </section>
+    </main>
   );
 }
