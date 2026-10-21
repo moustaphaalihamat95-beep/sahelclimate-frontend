@@ -1,25 +1,22 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const MapComponent = dynamic(() => import('../components/MapComponent'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-[350px] bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-emerald-400 font-bold border border-emerald-500/30 p-4">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-3"></div>
-      Chargement du SIG & Satellite Pan-Sahélien...
+      Chargement du SIG & Imagerie Satellite...
     </div>
   )
 });
 
 export default function Home() {
   const [user, setUser] = useState(null);
-  const [authMode, setAuthMode] = useState('welcome');
+  const [authMode, setAuthMode] = useState('welcome'); // 'welcome', 'login', 'register', 'verify'
   
-  // Champs Formulaires
-  const [countryCode, setCountryCode] = useState('+235'); // Tchad par défaut
+  const [countryCode, setCountryCode] = useState('+235');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -36,10 +33,7 @@ export default function Home() {
     { name: "Mali 🇲🇱", code: "+223" },
     { name: "Burkina Faso 🇧🇫", code: "+226" },
     { name: "Sénégal 🇸🇳", code: "+221" },
-    { name: "Mauritanie 🇲🇷", code: "+222" },
     { name: "Cameroun 🇨🇲", code: "+237" },
-    { name: "Nigeria 🇳🇬", code: "+234" },
-    { name: "Bénin 🇧🇯", code: "+229" },
   ];
 
   useEffect(() => {
@@ -49,10 +43,7 @@ export default function Home() {
     }
   }, []);
 
-  const getFullPhone = () => {
-    let cleaned = phone.trim().replace(/^0+/, '');
-    return `${countryCode}${cleaned}`;
-  };
+  const getFullPhone = () => `${countryCode}${phone.trim().replace(/^0+/, '')}`;
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -64,16 +55,14 @@ export default function Home() {
       const { data, error } = await supabase.auth.signUp({
         phone: fullPhone,
         password: password,
-        options: {
-          data: { full_name: fullName, city: city, country_code: countryCode }
-        }
+        options: { data: { full_name: fullName, city: city } }
       });
 
       if (error) throw error;
       setLoading(false);
       setAuthMode('verify');
     } catch (err) {
-      setErrorMsg(err.message || "Erreur lors de l'envoi du SMS OTP");
+      setErrorMsg(err.message || "Erreur d'envoi du SMS OTP");
       setLoading(false);
     }
   };
@@ -93,17 +82,12 @@ export default function Home() {
 
       if (error) throw error;
 
-      const loggedUser = {
-        fullName: fullName || 'Agriculteur du Sahel',
-        phone: fullPhone,
-        city: city
-      };
-
+      const loggedUser = { fullName: fullName || 'Agriculteur Sahel', phone: fullPhone, city: city };
       localStorage.setItem('sahel_user', JSON.stringify(loggedUser));
       setUser(loggedUser);
       setLoading(false);
     } catch (err) {
-      setErrorMsg("Code de validation incorrect ou expiré !");
+      setErrorMsg("Code OTP invalide ou expiré !");
       setLoading(false);
     }
   };
@@ -123,16 +107,16 @@ export default function Home() {
       if (error) throw error;
 
       const loggedUser = {
-        fullName: data.user?.user_metadata?.full_name || 'Utilisateur Sahélien',
+        fullName: data.user?.user_metadata?.full_name || 'Utilisateur Connecté',
         phone: fullPhone,
-        city: data.user?.user_metadata?.city || "Zone Sahélienne"
+        city: data.user?.user_metadata?.city || "N'Djamena"
       };
 
       localStorage.setItem('sahel_user', JSON.stringify(loggedUser));
       setUser(loggedUser);
       setLoading(false);
     } catch (err) {
-      setErrorMsg("Identifiants incorrects. Vérifiez votre numéro et mot de passe.");
+      setErrorMsg("Identifiants incorrects. Vérifiez le numéro et le mot de passe.");
       setLoading(false);
     }
   };
@@ -146,55 +130,56 @@ export default function Home() {
   const modulesData = {
     secheresse: {
       title: "🌤️ Détection Sécheresse & Climat Pan-Sahélien",
-      partner: "Agrix Tech / IA Agri Regional",
+      partner: "Agrix Tech / IA Agri",
       content: [
-        { label: "Zone Évaluée", val: "Bande Sahélienne & Subsaharienne (Tchad, Niger, Mali, Burkina)" },
+        { label: "Zone Évaluée", val: "Bande Sahélienne & Subsaharienne" },
         { label: "Indice de Précipitation (SPI)", val: "-0.85 (Risque de Sécheresse Modérée)" },
         { label: "Humidité des Sols", val: "18% - Nécessite Irrigation de soutien" },
-        { label: "Préconisation IA", val: "Planifier l'irrigation goutte-à-goutte à 05h00 pour limiter l'évaporation." }
+        { label: "Préconisation IA", val: "Planifier l'irrigation goutte-à-goutte à 05h00 du matin." }
       ]
     },
     arboriculture: {
       title: "🌳 Grande Muraille Verte & Agroforesterie",
-      partner: "Haller Farmers / Alliance Sahel",
+      partner: "Haller Farmers",
       content: [
-        { label: "Anacardier & Gomme Arabique", val: "Plantes résilientes à haut rendement économique pour le Sahel." },
-        { label: "Moringa Oleifera", val: "Régénération des sols arides et sécurité nutritionnelle." },
-        { label: "Technique Pan-Sahélienne", val: "Pratique des Zaï et Demi-lunes pour la collecte des eaux d'écoulement." }
+        { label: "Anacardier & Gomme Arabique", val: "Plantes résilientes à haut rendement pour le Sahel." },
+        { label: "Moringa Oleifera", val: "Régénération des sols arides et fixation de l'azote." },
+        { label: "Technique de conservation", val: "Réalisation de Zaï et demi-lunes." }
       ]
     },
     calendrier: {
-      title: "📅 Calendrier Agricole Adaptatif WAF/Sahel",
-      partner: "Plantix / FAO Afrique de l'Ouest",
+      title: "📅 Calendrier Agricole Intelligent",
+      partner: "Plantix / FAO",
       content: [
-        { label: "Fenêtre de Semis Régionale", val: "Dès l'installation de la première pluie utile (>20mm)." },
-        { label: "Céréales Résilientes", val: "Sorgho, Millet/Mil, Fonio, Niébé." },
-        { label: "Stockage Hermétique", val: "Sacs PICS pour préserver les récoltes sans produits chimiques." }
+        { label: "Fenêtre Idéale de Semis", val: "15 Juin - 05 Juillet (Dès la 1ère grande pluie)" },
+        { label: "Fertilisation Biologique", val: "Apport de compost mûr (5t/ha) 15 jours avant labour." },
+        { label: "Récolte & Stockage", val: "Sacs hermétiques PICS sans produits chimiques." }
       ]
     },
     formations: {
-      title: "🎙️ Formations Multilingues & Vocales",
-      partner: "Access Agriculture / Sahel Voice",
+      title: "🎙️ Formations Multilingues & Guides Pratiques",
+      partner: "Access Agriculture",
       content: [
-        { label: "Langues Supportées", val: "Arabe Tchadien, Foulfouldé/Peul, Haoussa, Bambara, Wolof, Moore, Français." },
-        { label: "Format Audio SMS", val: "Diffusion des conseils par synthétiseur vocal en langues locales." },
-        { label: "Pratiques Résilientes", val: "Compostage en tas, biopesticides au Neem, diguettes anti-érosion." }
+        { label: "Guide 1 : Compostage Rapide", val: "Technique en tas surélevé en 21 jours." },
+        { label: "Guide 2 : Protection Biologique", val: "Utilisation d'extraits de feuilles de Neem." },
+        { label: "Fiche Vocale SMS / Audio", val: "Disponible en Arabe Tchadien, Foulfouldé, Haoussa, Wolof." }
       ]
     }
   };
 
+  // ÉCRAN SI NON CONNECTÉ (DEMANDE D'INSCRIPTION / CONNEXION)
   if (!user) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
         <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl">
           <div className="text-center mb-6">
             <span className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-semibold">
-              🌍 Plateforme Panafricaine - BAMA 2026
+              🌍 BAMA Startup 2026
             </span>
             <h1 className="text-3xl font-extrabold text-white mt-2">
               SahelClimate<span className="text-emerald-400">-IA</span>
             </h1>
-            <p className="text-xs text-slate-400 mt-1">L'IA & le SIG au service de tous les agriculteurs du Sahel</p>
+            <p className="text-xs text-slate-400 mt-1">L'IA & le SIG au service des agriculteurs du Sahel</p>
           </div>
 
           {errorMsg && (
@@ -228,7 +213,7 @@ export default function Home() {
                   <select
                     value={countryCode}
                     onChange={(e) => setCountryCode(e.target.value)}
-                    className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-emerald-500"
+                    className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
                   >
                     {countries.map((c, i) => (
                       <option key={i} value={c.code}>{c.name} ({c.code})</option>
@@ -236,7 +221,7 @@ export default function Home() {
                   </select>
                   <input
                     type="text"
-                    placeholder="Numéro sans l'indicatif"
+                    placeholder="Ex: 60646072"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 outline-none"
@@ -291,7 +276,7 @@ export default function Home() {
                   <select
                     value={countryCode}
                     onChange={(e) => setCountryCode(e.target.value)}
-                    className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-emerald-500"
+                    className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
                   >
                     {countries.map((c, i) => (
                       <option key={i} value={c.code}>{c.name} ({c.code})</option>
@@ -308,10 +293,10 @@ export default function Home() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Ville / Localité</label>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Ville / Région</label>
                 <input
                   type="text"
-                  placeholder="Ex: N'Djamena, Niamey, Bamako..."
+                  placeholder="Ex: N'Djamena"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 outline-none"
@@ -332,9 +317,9 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl shadow-lg transition-all mt-2"
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl shadow-lg transition-all"
               >
-                {loading ? "Envoi du SMS..." : "S'inscrire (SMS OTP)"}
+                {loading ? "Envoi du SMS..." : "S'inscrire (Recevoir le SMS)"}
               </button>
               <button
                 type="button"
@@ -353,7 +338,7 @@ export default function Home() {
                 <span className="text-sm font-bold text-emerald-400">{getFullPhone()}</span>
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Code de Validation SMS (OTP)</label>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Code SMS (OTP)</label>
                 <input
                   type="text"
                   placeholder="Code à 6 chiffres (Ex: 123456)"
@@ -377,12 +362,13 @@ export default function Home() {
     );
   }
 
+  // TABLEAU DE BORD CONNECTÉ
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans max-w-4xl mx-auto pb-24">
       <header className="mb-6 flex justify-between items-center border-b border-slate-800 pb-4">
         <div>
           <div className="inline-block px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-semibold mb-1 border border-emerald-500/20">
-            🌍 Membre Sahélien : {user.fullName} ({user.city})
+            🟢 Connecté : {user.fullName} ({user.city})
           </div>
           <h1 className="text-xl md:text-3xl font-extrabold text-white tracking-tight">
             SahelClimate<span className="text-emerald-400">-IA</span>
@@ -396,15 +382,15 @@ export default function Home() {
         </button>
       </header>
 
-      {/* CARTE SATELLITE INTERACTIVE */}
+      {/* CARTE SATELLITE INTERACTIVE AVEC TRACÉ */}
       <section className="mb-8">
         <h2 className="text-lg font-bold text-emerald-400 mb-2 flex items-center gap-2">
-          <span>🛰️</span> Cartographie Satellite Esri - Zone Sahélienne
+          <span>🛰️</span> SIG & Tracé Géospatial Dynamique
         </h2>
         <MapComponent />
       </section>
 
-      {/* MODULES INTERACTIFS */}
+      {/* MODULES INTERACTIFS DÉROULANTS */}
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-slate-200 mb-2">💡 Services Agronomiques Panafricains</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -418,7 +404,7 @@ export default function Home() {
             >
               <div className="flex justify-between items-center mb-1">
                 <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono">{modulesData[key].partner}</span>
-                <span className="text-xs text-emerald-400 font-bold">{activeModule === key ? '▲' : '▼'}</span>
+                <span className="text-xs text-emerald-400 font-bold">{activeModule === key ? '▲ Masquer' : '▼ Ouvrir'}</span>
               </div>
               <h3 className="font-bold text-white text-base">{modulesData[key].title}</h3>
             </button>
@@ -426,7 +412,7 @@ export default function Home() {
         </div>
 
         {activeModule && modulesData[activeModule] && (
-          <div className="mt-4 p-5 bg-slate-900 border-2 border-emerald-500/50 rounded-2xl shadow-2xl">
+          <div className="mt-4 p-5 bg-slate-900 border-2 border-emerald-500/50 rounded-2xl shadow-2xl animate-fade-in">
             <h3 className="text-lg font-bold text-emerald-400 mb-3">{modulesData[activeModule].title}</h3>
             <div className="space-y-2">
               {modulesData[activeModule].content.map((item, idx) => (

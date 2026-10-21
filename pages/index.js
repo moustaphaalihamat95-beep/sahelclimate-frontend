@@ -1,261 +1,359 @@
-"use client";
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import { supabase } from '../lib/supabase';
 
-import { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
-import { 
-  LayoutDashboard, 
-  GraduationCap, 
-  LogOut, 
-  MapPin, 
-  ShieldAlert, 
-  Send,
-  Bot,
-  Sparkles,
-  TreePine,
-  Layers,
-  MessageSquare,
-  Users,
-  Calendar,
-  CloudSun,
-  ShieldCheck,
-  CheckCircle,
-  XCircle,
-  UserCheck
-} from "lucide-react";
-
-const MapWithNoSSR = dynamic(() => import("../components/Map"), {
+const MapComponent = dynamic(() => import('../components/MapComponent'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[400px] bg-slate-900/60 animate-pulse rounded-2xl border border-slate-800 flex items-center justify-center text-xs text-slate-500">
-      Chargement de la carte interactive & module SIG...
+    <div className="w-full h-[350px] bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-emerald-400 font-bold border border-emerald-500/30 p-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-3"></div>
+      Chargement du SIG & Imagerie Satellite...
     </div>
-  ),
+  )
 });
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authMode, setAuthMode] = useState('welcome'); // 'welcome', 'login', 'register', 'verify'
   
-  // --- Authentification ---
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('sahel_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) { return null; }
-  });
+  const [countryCode, setCountryCode] = useState('+235');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [city, setCity] = useState("N'Djamena");
+  const [otpCode, setOtpCode] = useState('');
+  
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [activeModule, setActiveModule] = useState(null);
 
-  const [fullName, setFullName] = useState('Moustapha Ali Hamat');
-  const [phone, setPhone] = useState('+23560646072');
-  const [city, setCity] = useState('Moussoro');
-  const [address, setAddress] = useState('Quartier Ouest');
-  const [email, setEmail] = useState('moustapha@sahelclimate.td');
-  const [password, setPassword] = useState('123456');
-  const [confirmPassword, setConfirmPassword] = useState('123456');
-  const [channel, setChannel] = useState('sms');
-
-  const [authStep, setAuthStep] = useState('register');
-  const [codeInput, setCodeInput] = useState('123456');
-  const [generatedCode, setGeneratedCode] = useState('123456');
-  const [targetDestination, setTargetDestination] = useState('');
-  const [authError, setAuthError] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-
-  // --- Données Parcelles & Tracé ---
-  const [parcels, setParcels] = useState([]);
-  const [selectedParcelId, setSelectedParcelId] = useState(1);
-  const [drawnZone, setDrawnZone] = useState(null);
-
-  // --- Annuaire des Agriculteurs & Inscriptions Admin ---
-  const [farmersList, setFarmersList] = useState([
-    { id: 1, name: "Moustapha Ali Hamat", city: "Moussoro", phone: "+23560646072", crops: "Sorgho, Sésame, Anacardier", area: "12.5 ha", status: "Validé", role: "Admin" },
-    { id: 2, name: "Mahamat Salhedine", city: "Moussoro", phone: "+23566123456", crops: "Sorgho Rouge, Niébé", area: "8.0 ha", status: "Validé", role: "Agriculteur" },
-    { id: 3, name: "Khadidja Ousmane", city: "N'Djamena", phone: "+23599887766", crops: "Maïs, Arachide, Citronniers", area: "15.2 ha", status: "Validé", role: "Agriculteur" },
-    { id: 4, name: "Ibrahim Abakar", city: "Pala", phone: "+23563112233", crops: "Coton, Sésame, Moringa", area: "20.0 ha", status: "En attente", role: "Agriculteur" }
-  ]);
-
-  // --- Assistant IA ---
-  const [chatMessages, setChatMessages] = useState([
-    {
-      sender: "ai",
-      text: "Bonjour ! Je suis l'Assistant IA Agronome de SahelClimate-AI. Tracez votre champ sur la carte ou posez-moi vos questions sur le climat, les arbres ou votre calendrier agricole."
-    }
-  ]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-
-  // --- 4 PILIERS DE FONCTIONNALITÉS CLÉS ---
-  const keyFeatures = [
-    {
-      id: "climate",
-      title: "Détection Sécheresse & Climat",
-      badge: "Agrix Tech / IA Agri",
-      color: "emerald",
-      icon: CloudSun,
-      desc: "Analyse en temps réel de la sécheresse, des prévisions météo et préconisations d'irrigation sur-mesure."
-    },
-    {
-      id: "trees",
-      title: "Arboriculture & Agroforesterie",
-      badge: "Haller Farmers",
-      color: "teal",
-      icon: TreePine,
-      desc: "Techniques biologiques d'implantation d'Anacardiers, Moringa et Citronniers pour reverdir les terres arides."
-    },
-    {
-      id: "calendar",
-      title: "Calendrier Agricole Intelligent",
-      badge: "Plantix / FAO",
-      color: "cyan",
-      icon: Calendar,
-      desc: "Calcul précis des fenêtres optimales de semis, fertilisation bio et récolte selon votre région."
-    },
-    {
-      id: "training",
-      title: "Formations & Guides Pratiques",
-      badge: "Access Agriculture",
-      color: "blue",
-      icon: GraduationCap,
-      desc: "Modules complets et fiches étape par étape pour former les producteurs aux pratiques résilientes."
-    }
+  const countries = [
+    { name: "Tchad 🇹🇩", code: "+235" },
+    { name: "Niger 🇳🇪", code: "+227" },
+    { name: "Mali 🇲🇱", code: "+223" },
+    { name: "Burkina Faso 🇧🇫", code: "+226" },
+    { name: "Sénégal 🇸🇳", code: "+221" },
+    { name: "Cameroun 🇨🇲", code: "+237" },
   ];
 
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
-    if (password !== confirmPassword) return setAuthError("Les mots de passe ne correspondent pas !");
-    setAuthLoading(true);
-    setTargetDestination(channel === 'sms' ? phone : (email || phone));
+  useEffect(() => {
+    const savedUser = localStorage.getItem('sahel_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
 
-    // Simulation d'envoi OTP professionnel
-    setTimeout(() => {
-      setGeneratedCode("849201");
-      setCodeInput("849201");
-      setAuthLoading(false);
-      setAuthStep('verify');
-    }, 1000);
+  const getFullPhone = () => `${countryCode}${phone.trim().replace(/^0+/, '')}`;
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      const fullPhone = getFullPhone();
+      const { data, error } = await supabase.auth.signUp({
+        phone: fullPhone,
+        password: password,
+        options: { data: { full_name: fullName, city: city } }
+      });
+
+      if (error) throw error;
+      setLoading(false);
+      setAuthMode('verify');
+    } catch (err) {
+      setErrorMsg(err.message || "Erreur d'envoi du SMS OTP");
+      setLoading(false);
+    }
   };
 
-  const handleVerifySubmit = (e) => {
+  const handleVerifyOTP = async (e) => {
     e.preventDefault();
-    const newUser = { full_name: fullName, phone_number: phone, city: city, address: address, email: email, role: 'Agriculteur', status: 'Validé' };
-    try { localStorage.setItem('sahel_user', JSON.stringify(newUser)); } catch (e) {}
-    setUser(newUser);
-    
-    setFarmersList(prev => [
-      { id: Date.now(), name: fullName, city: city, phone: phone, crops: "Sorgho, Maïs", area: "10 ha", status: "Validé", role: "Agriculteur" },
-      ...prev
-    ]);
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      const fullPhone = getFullPhone();
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: fullPhone,
+        token: otpCode,
+        type: 'sms'
+      });
+
+      if (error) throw error;
+
+      const loggedUser = { fullName: fullName || 'Agriculteur Sahel', phone: fullPhone, city: city };
+      localStorage.setItem('sahel_user', JSON.stringify(loggedUser));
+      setUser(loggedUser);
+      setLoading(false);
+    } catch (err) {
+      setErrorMsg("Code OTP invalide ou expiré !");
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      const fullPhone = getFullPhone();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        phone: fullPhone,
+        password: password,
+      });
+
+      if (error) throw error;
+
+      const loggedUser = {
+        fullName: data.user?.user_metadata?.full_name || 'Utilisateur Connecté',
+        phone: fullPhone,
+        city: data.user?.user_metadata?.city || "N'Djamena"
+      };
+
+      localStorage.setItem('sahel_user', JSON.stringify(loggedUser));
+      setUser(loggedUser);
+      setLoading(false);
+    } catch (err) {
+      setErrorMsg("Identifiants incorrects. Vérifiez le numéro et le mot de passe.");
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {
-    try { localStorage.removeItem('sahel_user'); } catch (e) {}
+    localStorage.removeItem('sahel_user');
     setUser(null);
-    setAuthStep('register');
+    setAuthMode('welcome');
   };
 
-  const handleAreaDrawn = (zone) => {
-    setDrawnZone({
-      area_ha: zone.area_ha,
-      soil_capacity: "Sol Limono-Sableuse Sahélien (Barh El Gazel / Chari-Baguirmi)",
-      drought_risk: "Modéré (Alerte irrigation recommandée)",
-      recommended_trees: ["Anacardier (Haute rentabilité)", "Moringa Oleifera (Fixation des sols)", "Citronniers"],
-      fao_calendar: {
-        preparation: "Mai - Juin : Labour doux & apport de compost bio",
-        semis: "15 Juillet - 05 Août : Fenêtre idéale de semis dès la 1ère grande pluie",
-        recolte: "Octobre - Novembre : Récolte et stockage hermétique"
-      }
-    });
-  };
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-    const userMsg = chatInput;
-    setChatMessages(prev => [...prev, { sender: "user", text: userMsg }]);
-    setChatInput("");
-    setChatLoading(true);
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: userMsg })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setChatMessages(prev => [...prev, { sender: "ai", text: data.response }]);
-      } else {
-        throw new Error();
-      }
-    } catch {
-      setChatMessages(prev => [...prev, { sender: "ai", text: "En tant qu'agronome virtuel SahelClimate-AI, je vous recommande d'appliquer un paillage de 10 cm pour conserver l'humidité et d'associer le sorgho au niébé." }]);
-    } finally {
-      setChatLoading(false);
+  const modulesData = {
+    secheresse: {
+      title: "🌤️ Détection Sécheresse & Climat Pan-Sahélien",
+      partner: "Agrix Tech / IA Agri",
+      content: [
+        { label: "Zone Évaluée", val: "Bande Sahélienne & Subsaharienne" },
+        { label: "Indice de Précipitation (SPI)", val: "-0.85 (Risque de Sécheresse Modérée)" },
+        { label: "Humidité des Sols", val: "18% - Nécessite Irrigation de soutien" },
+        { label: "Préconisation IA", val: "Planifier l'irrigation goutte-à-goutte à 05h00 du matin." }
+      ]
+    },
+    arboriculture: {
+      title: "🌳 Grande Muraille Verte & Agroforesterie",
+      partner: "Haller Farmers",
+      content: [
+        { label: "Anacardier & Gomme Arabique", val: "Plantes résilientes à haut rendement pour le Sahel." },
+        { label: "Moringa Oleifera", val: "Régénération des sols arides et fixation de l'azote." },
+        { label: "Technique de conservation", val: "Réalisation de Zaï et demi-lunes." }
+      ]
+    },
+    calendrier: {
+      title: "📅 Calendrier Agricole Intelligent",
+      partner: "Plantix / FAO",
+      content: [
+        { label: "Fenêtre Idéale de Semis", val: "15 Juin - 05 Juillet (Dès la 1ère grande pluie)" },
+        { label: "Fertilisation Biologique", val: "Apport de compost mûr (5t/ha) 15 jours avant labour." },
+        { label: "Récolte & Stockage", val: "Sacs hermétiques PICS sans produits chimiques." }
+      ]
+    },
+    formations: {
+      title: "🎙️ Formations Multilingues & Guides Pratiques",
+      partner: "Access Agriculture",
+      content: [
+        { label: "Guide 1 : Compostage Rapide", val: "Technique en tas surélevé en 21 jours." },
+        { label: "Guide 2 : Protection Biologique", val: "Utilisation d'extraits de feuilles de Neem." },
+        { label: "Fiche Vocale SMS / Audio", val: "Disponible en Arabe Tchadien, Foulfouldé, Haoussa, Wolof." }
+      ]
     }
   };
 
-  const toggleUserStatus = (id) => {
-    setFarmersList(prev => prev.map(f => f.id === id ? { ...f, status: f.status === 'Validé' ? 'Bloqué' : 'Validé' } : f));
-  };
-
+  // ÉCRAN SI NON CONNECTÉ (DEMANDE D'INSCRIPTION / CONNEXION)
   if (!user) {
     return (
-      <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6 font-sans">
-        <div className="w-full max-w-lg bg-slate-900/90 border border-slate-800/80 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl mb-3 text-emerald-400">
-              <ShieldAlert className="w-7 h-7" />
-            </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-teal-200 bg-clip-text text-transparent">SahelClimate-AI</h1>
-            <p className="text-xs text-slate-400 mt-1">Plateforme Professionnelle Climat & Agriculture Sahélienne</p>
+      <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl">
+          <div className="text-center mb-6">
+            <span className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-semibold">
+              🌍 BAMA Startup 2026
+            </span>
+            <h1 className="text-3xl font-extrabold text-white mt-2">
+              SahelClimate<span className="text-emerald-400">-IA</span>
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">L'IA & le SIG au service des agriculteurs du Sahel</p>
           </div>
 
-          {authStep === 'register' ? (
-            <form onSubmit={handleRegisterSubmit} className="space-y-4">
+          {errorMsg && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl text-center">
+              {errorMsg}
+            </div>
+          )}
+
+          {authMode === 'welcome' && (
+            <div className="space-y-4">
+              <button
+                onClick={() => { setAuthMode('login'); setErrorMsg(''); }}
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl shadow-lg transition-all"
+              >
+                Se Connecter (Mon Compte)
+              </button>
+              <button
+                onClick={() => { setAuthMode('register'); setErrorMsg(''); }}
+                className="w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-xl border border-emerald-500/30 transition-all"
+              >
+                Créer un Nouveau Compte
+              </button>
+            </div>
+          )}
+
+          {authMode === 'login' && (
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Nom complet *</label>
-                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Téléphone (SMS OTP) *</label>
-                  <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Ville / Région *</label>
-                  <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Mot de passe *</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1">Confirmer *</label>
-                  <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500" />
+                <label className="text-xs font-bold text-slate-300 block mb-1">Pays & Téléphone</label>
+                <div className="flex gap-2">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
+                  >
+                    {countries.map((c, i) => (
+                      <option key={i} value={c.code}>{c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Ex: 60646072"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 outline-none"
+                    required
+                  />
                 </div>
               </div>
-
-              <button type="submit" disabled={authLoading} className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-950/50">
-                {authLoading ? "Génération du code SMS..." : "S'inscrire (Vérification OTP)"}
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Mot de Passe</label>
+                <input
+                  type="password"
+                  placeholder="Votre mot de passe"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 outline-none"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl shadow-lg transition-all"
+              >
+                {loading ? "Connexion..." : "Se Connecter"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('welcome')}
+                className="w-full text-center text-xs text-slate-400 hover:text-white mt-2"
+              >
+                ← Retour
               </button>
             </form>
-          ) : (
-            <form onSubmit={handleVerifySubmit} className="space-y-5">
-              <h2 className="text-sm font-semibold text-slate-200 text-center">🔑 Saisir le Code SMS Reçu</h2>
-              <p className="text-xs text-slate-400 text-center">Code envoyé par SMS au : <span className="text-emerald-400 font-bold">{phone}</span></p>
+          )}
 
-              <div className="bg-emerald-950/30 border border-emerald-500/30 p-4 rounded-xl text-center">
-                <span className="text-xs text-slate-400 block mb-1">Code de confirmation sécurisé :</span>
-                <span className="text-3xl font-mono font-bold text-emerald-400 tracking-widest">{generatedCode}</span>
+          {authMode === 'register' && (
+            <form onSubmit={handleRegister} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Nom Complet</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Moustapha Ali"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 outline-none"
+                  required
+                />
               </div>
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Pays & Téléphone</label>
+                <div className="flex gap-2">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-xs outline-none"
+                  >
+                    {countries.map((c, i) => (
+                      <option key={i} value={c.code}>{c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Ex: 60646072"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 outline-none"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Ville / Région</label>
+                <input
+                  type="text"
+                  placeholder="Ex: N'Djamena"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 outline-none"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Mot de Passe</label>
+                <input
+                  type="password"
+                  placeholder="Créer un mot de passe"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white text-sm focus:border-emerald-500 outline-none"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl shadow-lg transition-all"
+              >
+                {loading ? "Envoi du SMS..." : "S'inscrire (Recevoir le SMS)"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthMode('welcome')}
+                className="w-full text-center text-xs text-slate-400 hover:text-white mt-1"
+              >
+                ← Retour
+              </button>
+            </form>
+          )}
 
-              <input type="text" value={codeInput} onChange={(e) => setCodeInput(e.target.value)} required className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3.5 text-center text-2xl font-mono tracking-widest text-white focus:border-emerald-500 focus:outline-none" />
-
-              <button type="submit" className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all">
-                Valider & Accéder à la Plateforme
+          {authMode === 'verify' && (
+            <form onSubmit={handleVerifyOTP} className="space-y-4">
+              <div className="text-center">
+                <p className="text-xs text-slate-300 mb-1">Code envoyé au :</p>
+                <span className="text-sm font-bold text-emerald-400">{getFullPhone()}</span>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-1">Code SMS (OTP)</label>
+                <input
+                  type="text"
+                  placeholder="Code à 6 chiffres (Ex: 123456)"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-center text-lg font-bold tracking-widest text-emerald-400 focus:border-emerald-500 outline-none"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl shadow-lg transition-all"
+              >
+                {loading ? "Vérification..." : "Valider & Accéder"}
               </button>
             </form>
           )}
@@ -264,275 +362,69 @@ export default function Home() {
     );
   }
 
+  // TABLEAU DE BORD CONNECTÉ
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
-      
-      {/* NAVIGATION LATÉRALE */}
-      <aside className="w-64 bg-slate-900/80 border-r border-slate-800/80 p-5 flex flex-col justify-between hidden md:flex">
+    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans max-w-4xl mx-auto pb-24">
+      <header className="mb-6 flex justify-between items-center border-b border-slate-800 pb-4">
         <div>
-          <div className="flex items-center space-x-3 mb-8 px-2">
-            <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center text-emerald-400">
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-bold text-sm text-white">SahelClimate</h1>
-              <p className="text-[10px] text-slate-400">v2.5 • Pro Edition</p>
-            </div>
+          <div className="inline-block px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-semibold mb-1 border border-emerald-500/20">
+            🟢 Connecté : {user.fullName} ({user.city})
           </div>
+          <h1 className="text-xl md:text-3xl font-extrabold text-white tracking-tight">
+            SahelClimate<span className="text-emerald-400">-IA</span>
+          </h1>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="text-xs px-3 py-1.5 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-300 rounded-lg border border-slate-700 transition-all"
+        >
+          Déconnexion
+        </button>
+      </header>
 
-          <nav className="space-y-1.5">
+      {/* CARTE SATELLITE INTERACTIVE AVEC TRACÉ */}
+      <section className="mb-8">
+        <h2 className="text-lg font-bold text-emerald-400 mb-2 flex items-center gap-2">
+          <span>🛰️</span> SIG & Tracé Géospatial Dynamique
+        </h2>
+        <MapComponent />
+      </section>
+
+      {/* MODULES INTERACTIFS DÉROULANTS */}
+      <section className="space-y-4">
+        <h2 className="text-lg font-bold text-slate-200 mb-2">💡 Services Agronomiques Panafricains</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Object.keys(modulesData).map((key) => (
             <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'dashboard' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50'
+              key={key}
+              onClick={() => setActiveModule(activeModule === key ? null : key)}
+              className={`p-4 rounded-xl border text-left transition-all ${
+                activeModule === key ? 'bg-slate-800 border-emerald-500 shadow-lg' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4" />
-              <span>Tableau de Bord & Carte</span>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono">{modulesData[key].partner}</span>
+                <span className="text-xs text-emerald-400 font-bold">{activeModule === key ? '▲ Masquer' : '▼ Ouvrir'}</span>
+              </div>
+              <h3 className="font-bold text-white text-base">{modulesData[key].title}</h3>
             </button>
-
-            <button
-              onClick={() => setActiveTab('assistant')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'assistant' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50'
-              }`}
-            >
-              <Bot className="w-4 h-4 text-teal-400" />
-              <span>Assistant IA Agronome</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('trainings')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'trainings' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-400 hover:bg-slate-800/50'
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              <span>Formations & Conseils</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('admin')}
-              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'admin' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'text-amber-400/70 hover:bg-slate-800/50'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4 text-amber-400" />
-              <span>Panneau Administrateur</span>
-            </button>
-          </nav>
+          ))}
         </div>
 
-        <div className="pt-4 border-t border-slate-800/80">
-          <div className="flex items-center space-x-3 p-2 mb-3 bg-slate-950/60 rounded-xl border border-slate-800/50">
-            <div className="w-8 h-8 rounded-lg bg-emerald-600/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
-              {user.full_name?.charAt(0)}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-medium text-white truncate">{user.full_name}</p>
-              <p className="text-[10px] text-slate-400 truncate">{user.city}</p>
+        {activeModule && modulesData[activeModule] && (
+          <div className="mt-4 p-5 bg-slate-900 border-2 border-emerald-500/50 rounded-2xl shadow-2xl animate-fade-in">
+            <h3 className="text-lg font-bold text-emerald-400 mb-3">{modulesData[activeModule].title}</h3>
+            <div className="space-y-2">
+              {modulesData[activeModule].content.map((item, idx) => (
+                <div key={idx} className="bg-slate-950/60 p-3 rounded-lg border border-slate-800">
+                  <div className="text-xs font-bold text-slate-400 uppercase">{item.label}</div>
+                  <div className="text-sm font-semibold text-slate-100 mt-0.5">{item.val}</div>
+                </div>
+              ))}
             </div>
           </div>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center space-x-2 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-medium transition-all">
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Déconnexion</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* ZONE DE CONTENU PRINCIPAL */}
-      <div className="flex-1 flex flex-col overflow-y-auto">
-        <header className="h-16 border-b border-slate-800/80 px-6 flex items-center justify-between bg-slate-900/40 backdrop-blur-md sticky top-0 z-40">
-          <div className="flex items-center space-x-3">
-            <span className="text-xs text-slate-400">SahelClimate /</span>
-            <span className="text-xs font-semibold text-white capitalize">{activeTab}</span>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-lg font-semibold flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <span>Système Connecté</span>
-            </span>
-          </div>
-        </header>
-
-        <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
-          
-          {/* TAB 1: TABLEAU DE BORD, CARTE ET 4 PILIERS */}
-          {activeTab === 'dashboard' && (
-            <>
-              {/* LES 4 PILIERS DE L'APPLICATION */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {keyFeatures.map((feat) => {
-                  const Icon = feat.icon;
-                  return (
-                    <div key={feat.id} className="bg-slate-900/60 border border-slate-800/80 p-4 rounded-2xl space-y-2 hover:border-emerald-500/40 transition-all">
-                      <div className="flex justify-between items-center">
-                        <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400">
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <span className="text-[10px] bg-slate-800 text-emerald-300 border border-slate-700 px-2 py-0.5 rounded-full font-medium">
-                          {feat.badge}
-                        </span>
-                      </div>
-                      <h3 className="text-xs font-bold text-white pt-1">{feat.title}</h3>
-                      <p className="text-[11px] text-slate-400 leading-relaxed">{feat.desc}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* CARTE INTERACTIVE DE TRACÉ */}
-              <div className="bg-slate-900/60 border border-slate-800/80 p-5 rounded-2xl backdrop-blur-sm space-y-3">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
-                    <MapPin className="w-4 h-4 text-emerald-400" />
-                    <span>SIG & Tracé Géospatial Dynamique</span>
-                  </h2>
-                  <span className="text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full">
-                    ✏️ Tracé en temps réel sur le Sahel
-                  </span>
-                </div>
-                
-                <MapWithNoSSR 
-                  parcels={parcels} 
-                  selectedParcelId={selectedParcelId} 
-                  onSelectParcel={(id) => setSelectedParcelId(id)}
-                  onAreaDrawn={handleAreaDrawn}
-                />
-              </div>
-
-              {/* RESULTAT ANALYTIQUE DU TRACÉ (ARBRES, CLIMAT, FAO) */}
-              {drawnZone && (
-                <div className="bg-gradient-to-br from-emerald-950/40 via-slate-900/90 to-slate-950 border border-emerald-500/40 p-6 rounded-2xl shadow-xl space-y-6">
-                  <div className="border-b border-emerald-500/20 pb-4">
-                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest block mb-1">Rapport Agronomique Généré par l'IA</span>
-                    <h3 className="text-lg font-bold text-white">Superficie Calculée : {drawnZone.area_ha} Hectares</h3>
-                    <p className="text-xs text-slate-300 mt-1">{drawnZone.soil_capacity}</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                    <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-2">
-                      <h4 className="font-bold text-teal-400 flex items-center space-x-2">
-                        <TreePine className="w-4 h-4" />
-                        <span>Arbres Recommandés (Reverdissement)</span>
-                      </h4>
-                      <ul className="list-disc list-inside text-slate-300 space-y-1">
-                        {drawnZone.recommended_trees.map((t, idx) => <li key={idx}>{t}</li>)}
-                      </ul>
-                    </div>
-
-                    <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-2">
-                      <h4 className="font-bold text-cyan-400 flex items-center space-x-2">
-                        <Calendar className="w-4 h-4" />
-                        <span>Calendrier Optimal (Recommandation FAO)</span>
-                      </h4>
-                      <p className="text-slate-300"><strong>Semis :</strong> {drawnZone.fao_calendar.semis}</p>
-                      <p className="text-slate-300"><strong>Récolte :</strong> {drawnZone.fao_calendar.recolte}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* TAB 2: ASSISTANT IA AGRO-CLIMAT */}
-          {activeTab === 'assistant' && (
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl flex flex-col h-[70vh]">
-              <div className="p-4 border-b border-slate-800 flex items-center space-x-3 bg-slate-900/80 rounded-t-2xl">
-                <Bot className="w-5 h-5 text-teal-400" />
-                <div>
-                  <h2 className="text-xs font-bold text-white">Assistant Agronome IA (Gemini API)</h2>
-                  <p className="text-[10px] text-slate-400">Réponses dynamiques et structurées selon les 4 piliers</p>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {chatMessages.map((msg, index) => (
-                  <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl p-4 text-xs leading-relaxed ${
-                      msg.sender === 'user' ? 'bg-emerald-600 text-white' : 'bg-slate-800/90 border border-slate-700/60 text-slate-200'
-                    }`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-                {chatLoading && <div className="text-xs text-slate-400 animate-pulse">L'agronome IA prépare votre réponse...</div>}
-              </div>
-
-              <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-800 bg-slate-900/80 rounded-b-2xl flex space-x-3">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Posez votre question sur la sécheresse, la plantation des arbres, le calendrier..."
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500"
-                />
-                <button type="submit" disabled={chatLoading} className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center space-x-2">
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* TAB 3: PANNEAU ADMINISTRATEUR */}
-          {activeTab === 'admin' && (
-            <div className="space-y-6">
-              <div className="bg-amber-950/20 border border-amber-500/30 p-6 rounded-2xl flex justify-between items-center">
-                <div>
-                  <h2 className="text-sm font-bold text-amber-400 flex items-center space-x-2">
-                    <ShieldCheck className="w-5 h-5" />
-                    <span>Panneau d'Administration & Inscriptions</span>
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">Gestion des utilisateurs, validation des comptes et suivi de la plateforme au Tchad.</p>
-                </div>
-                <span className="text-xs bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full font-bold">Compte Admin Actif</span>
-              </div>
-
-              <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Utilisateurs & Agriculteurs Inscrits</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-slate-300">
-                    <thead className="bg-slate-950/80 text-slate-400 uppercase text-[10px]">
-                      <tr>
-                        <th className="p-3">Nom Complet</th>
-                        <th className="p-3">Téléphone</th>
-                        <th className="p-3">Ville</th>
-                        <th className="p-3">Rôle</th>
-                        <th className="p-3">Statut</th>
-                        <th className="p-3 text-right">Action Admin</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60">
-                      {farmersList.map((f) => (
-                        <tr key={f.id}>
-                          <td className="p-3 font-bold text-white">{f.name}</td>
-                          <td className="p-3 font-mono">{f.phone}</td>
-                          <td className="p-3">{f.city}</td>
-                          <td className="p-3"><span className="px-2 py-0.5 bg-slate-800 text-emerald-400 rounded-md text-[10px]">{f.role}</span></td>
-                          <td className="p-3">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                              f.status === 'Validé' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                            }`}>
-                              {f.status}
-                            </span>
-                          </td>
-                          <td className="p-3 text-right">
-                            <button onClick={() => toggleUserStatus(f.id)} className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-white rounded-lg border border-slate-700">
-                              {f.status === 'Validé' ? 'Bloquer' : 'Valider'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-        </div>
-      </div>
-    </div>
+        )}
+      </section>
+    </main>
   );
 }
