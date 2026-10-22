@@ -24,11 +24,21 @@ export default function Home() {
   
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeTab, setActiveTab] = useState('sig');
+  const [activeTab, setActiveTab] = useState('chat'); // Par défaut sur Chat IA
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [speakingLanguage, setSpeakingLanguage] = useState(null);
+
+  // ÉTAT POUR LE CHATBOT IA
+  const [chatMessages, setChatMessages] = useState([
+    {
+      sender: 'ai',
+      text: "Bonjour ! Je suis votre Assistant IA Agronomique SahelClimate-IA. Poser-moi vos questions sur le choix des semences, le compostage, les maladies de plantes, l'irrigation ou la lutte contre la sécheresse."
+    }
+  ]);
+  const [inputQuestion, setInputQuestion] = useState('');
+  const [isAiReplying, setIsAiReplying] = useState(false);
 
   const countries = [
     { name: "Tchad 🇹🇩", code: "+235" },
@@ -128,6 +138,39 @@ export default function Home() {
     localStorage.removeItem('sahel_user');
     setUser(null);
     setAuthMode('welcome');
+  };
+
+  // ENVOI D'UN MESSAGE AU CHATBOT IA
+  const handleSendMessage = (textToSend) => {
+    const query = textToSend || inputQuestion;
+    if (!query.trim()) return;
+
+    // Ajouter le message utilisateur
+    const userMsg = { sender: 'user', text: query };
+    setChatMessages((prev) => [...prev, userMsg]);
+    if (!textToSend) setInputQuestion('');
+    setIsAiReplying(true);
+
+    // Simulation intelligente de la réponse de l'IA Agronomique
+    setTimeout(() => {
+      let aiResponse = "Pour la zone sahélienne, il est recommandé d'adapter l'irrigation tôt le matin ou tard le soir, et privilégier des espèces résilientes comme le Sorgho, le Mil ou le Moringa.";
+
+      const lower = query.toLowerCase();
+      if (lower.includes('semence') || lower.includes('semis') || lower.includes('pluie')) {
+        aiResponse = "🌱 **Conseil Semis :** En zone de sécheresse, attendez le déclenchement de la première pluie utile (>20 mm). Utilisez des variétés à cycle court (70-90 jours) traitées aux bio-fongicides au Neem.";
+      } else if (lower.includes('eau') || lower.includes('irrigation') || lower.includes('forage') || lower.includes('solaire')) {
+        aiResponse = "☀️ **Conseil Irrigation & Solaire :** Le goutte-à-goutte associé à un pompage solaire réduit la consommation d'eau de 50%. En zone aride, complétez avec des demi-lunes pour retenir les eaux de ruissellement.";
+      } else if (lower.includes('chenille') || lower.includes('maladie') || lower.includes('insecte') || lower.includes('bio')) {
+        aiResponse = "🐛 **Protection Biologique :** Contre les chenilles légionnaires et ravageurs, préparez un extrait de feuilles de Neem (500g macérés dans 10L d'eau avec du savon noir). Pulvériser 2 fois par semaine.";
+      } else if (lower.includes('arbre') || lower.includes('désert') || lower.includes('reboisement') || lower.includes('gomme')) {
+        aiResponse = "🌴 **Reverdissement Sahélien :** Pour freiner l'avancée des d贅es et fixer les sols, replantez l'Acacia Senegal (Gomme arabique), le Balanites aegyptiaca (Dattier du désert) et l'Anacardier.";
+      } else if (lower.includes('compost') || lower.includes('engrais')) {
+        aiResponse = "🪱 **Compostage Rapide :** Alternez en couches de 20cm les déchets verts (paille, feuilles) et les fientes d'élevage (bovins, caprins). Arrosez légèrement tous les 3 jours. Compost prêt en 21 jours.";
+      }
+
+      setChatMessages((prev) => [...prev, { sender: 'ai', text: aiResponse }]);
+      setIsAiReplying(false);
+    }, 1200);
   };
 
   const handlePhotoUpload = (e) => {
@@ -382,8 +425,10 @@ export default function Home() {
         </button>
       </header>
 
+      {/* NAVIGATION ONGLET */}
       <nav className="flex overflow-x-auto gap-2 mb-6 pb-2 no-scrollbar">
         {[
+          { id: 'chat', label: '💬 Assistant Chat IA', icon: '🤖' },
           { id: 'sig', label: '🛰️ Carte SIG & Tracé', icon: '📍' },
           { id: 'scan', label: '📸 Scanner IA & Pathologies', icon: '🔍' },
           { id: 'reboisement', label: '🌳 Arbres Anti-Désert', icon: '🌴' },
@@ -404,6 +449,89 @@ export default function Home() {
         ))}
       </nav>
 
+      {/* ONGLET ASSISTANT CHAT IA INTERACTIF */}
+      {activeTab === 'chat' && (
+        <section className="space-y-4 animate-fade-in">
+          <div className="bg-slate-900/90 p-4 md:p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col h-[520px]">
+            <div className="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
+                  <span>🤖</span> Messagerie & Conseils Agronomiques IA
+                </h2>
+                <p className="text-xs text-slate-400">Posez vos questions librement à l'IA spécialisée en climat et agriculture du Sahel.</p>
+              </div>
+              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/30">En direct</span>
+            </div>
+
+            {/* ZONE D'AFFICHAGE DES MESSAGES */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2 no-scrollbar">
+              {chatMessages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] p-3.5 rounded-2xl text-xs md:text-sm leading-relaxed ${
+                      msg.sender === 'user'
+                        ? 'bg-emerald-500 text-slate-950 font-semibold rounded-br-none shadow-lg'
+                        : 'bg-slate-950 border border-slate-800 text-slate-100 rounded-bl-none shadow-md'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+
+              {isAiReplying && (
+                <div className="flex justify-start">
+                  <div className="bg-slate-950 border border-slate-800 text-emerald-400 text-xs p-3 rounded-2xl rounded-bl-none flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-emerald-500"></div>
+                    L'IA recherche les conseils agronomiques...
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SUGGESTIONS RAPIDES */}
+            <div className="flex overflow-x-auto gap-2 py-3 border-t border-slate-800/80 no-scrollbar text-xs">
+              {[
+                "Quand semer le mil ?",
+                "Fabriquer un pesticide bio",
+                "Arbres contre le désert",
+                "Irrigation solaire",
+              ].map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSendMessage(q)}
+                  className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-emerald-400 rounded-xl border border-emerald-500/30 whitespace-nowrap"
+                >
+                  💡 {q}
+                </button>
+              ))}
+            </div>
+
+            {/* FORMULAIRE D'ENVOI */}
+            <div className="flex gap-2 pt-2">
+              <input
+                type="text"
+                placeholder="Posez votre question à l'IA (Ex: Comment faire du compost ?)"
+                value={inputQuestion}
+                onChange={(e) => setInputQuestion(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                className="flex-1 p-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs md:text-sm text-white outline-none focus:border-emerald-500"
+              />
+              <button
+                onClick={() => handleSendMessage()}
+                className="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl text-xs md:text-sm transition-all shadow-lg"
+              >
+                Envoyer
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* AUTRES ONGLETS DE L'APPLICATION */}
       {activeTab === 'sig' && (
         <section className="space-y-4 animate-fade-in">
           <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl">
@@ -466,7 +594,7 @@ export default function Home() {
         <section className="space-y-4 animate-fade-in">
           <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl">
             <h2 className="text-lg font-bold text-emerald-400 mb-1">🌴 Arbres Résilients & Grande Muraille Verte</h2>
-            <p className="text-xs text-slate-400 mb-4">Sélection d'espèces à haute tolérance à la sécheresse pour fixer les dunes et restaurer les sols arides.</p>
+            <p className="text-xs text-slate-400 mb-4">Sélection d'espèces à haute tolérance à la sécheresse pour fixer les d贅es et restaurer les sols arides.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[
