@@ -29,7 +29,7 @@ export default function Home() {
 
   // Chatbot IA
   const [chatMessages, setChatMessages] = useState([
-    { sender: 'ai', text: "Bonjour ! Je suis l'IA SahelClimate-IA fonctionnelle à 100%. Posez vos questions sur vos parcelles, les fiches techniques ou les traitements bio." }
+    { sender: 'ai', text: "Bonjour ! Je suis l'IA SahelClimate-IA. Posez vos questions sur la gestion des parcelles, l'irrigation ou les traitements bio." }
   ]);
   const [inputQuestion, setInputQuestion] = useState('');
   const [isAiReplying, setIsAiReplying] = useState(false);
@@ -47,57 +47,29 @@ export default function Home() {
     { name: "Sénégal 🇸🇳", code: "+221" },
   ];
 
-  // BANQUE DE FICHES TECHNIQUES COMPLÈTES (PDF & TEXTE EXPLICATIF)
   const fichesTechniques = [
     {
       id: 'pdf1',
       category: '💧 Irrigation & Solaire',
       title: 'Fiche Technique : Installation Puits & Pompage Photovoltaïque',
-      author: 'SahelClimate-IA / FAO',
-      summary: 'Dimensionnement des panneaux solaires, débit optimal (10m³/h) et raccordement au système de goutte-à-goutte pour zones arides.',
+      author: 'SahelClimate-IA',
+      summary: 'Dimensionnement des panneaux solaires, débit optimal (10m³/h) et goutte-à-goutte.',
       details: [
-        "1. Profondeur moyenne de la nappe : 15m à 45m selon la région du Sahel.",
-        "2. Puissance recommandée : 4 Panneaux Photovoltaïques de 330W (1.32 kWp).",
-        "3. Économie d'eau : Réduction de 50% de la consommation d'eau grâce au goutte-à-goutte nocturne.",
-        "4. Maintenance : Nettoyage mensuel des panneaux solaires pour éviter l'accumulation de poussière du désert."
+        "1. Profondeur nappe : 15m à 45m.",
+        "2. Puissance : 4 Panneaux Photovoltaïques de 330W (1.32 kWp).",
+        "3. Économie d'eau : 50% de réduction par goutte-à-goutte nocturne."
       ]
     },
     {
       id: 'pdf2',
       category: '🐛 Protection Biologique',
-      title: 'Guide d\'Extraction du Bio-Pesticide au Neem & Savon Noir',
-      author: 'Institut Agronomique Sahélien',
-      summary: 'Formulation 100% biologique contre la chenille légionnaire, les pucerons et les sautériaux.',
+      title: 'Guide d\'Extraction du Bio-Pesticide au Neem',
+      author: 'AgroTech Sahélienne',
+      summary: 'Formulation 100% biologique contre les chenilles et sautériaux.',
       details: [
-        "1. Ingrédients : 500g de graines de Neem pilées + 10 Litres d'eau + 50g de savon noir local.",
-        "2. Macération : Laisser reposer le mélange à l'ombre pendant 24 heures.",
-        "3. Filtration : Filtrer à l'aide d'un tissu fin pour éviter de boucher le pulvérisateur.",
-        "4. Application : Pulvériser tôt le matin (06h00) ou après le coucher du soleil 2 fois par semaine."
-      ]
-    },
-    {
-      id: 'pdf3',
-      category: '🌳 Grande Muraille Verte',
-      title: 'Manuel de Reboisement : Acacia Senegal & Balanites',
-      author: 'Alliance Grande Muraille Verte',
-      summary: 'Technique d'implantation des arbres résilients pour freiner la désertification et fixer les dunes.',
-      details: [
-        "1. Choix des espèces : Acacia Senegal (Gomme arabique), Balanites aegyptiaca (Dattier du désert), Moringa.",
-        "2. Période de plantation : Dès les premières pluies utiles de juin/juillet.",
-        "3. Méthode Zaï : Trous de 30cm de profondeur garnis de compost mûr pour capter l'humidité.",
-        "4. Rentabilité : Production de gomme arabique utilisable dès la 4ème année."
-      ]
-    },
-    {
-      id: 'pdf4',
-      category: '🐟 Économie Circulaire',
-      title: 'Guide Aquaponie & Élevage Intégré Bovin-Biogaz',
-      author: 'Sahel Agro-Circulaire',
-      summary: 'Valorisation des déjections bovines en biogaz et utilisation de l\'eau des bassins de Tilapias pour l\'engrais.',
-      details: [
-        "1. Bassins de Pisciculture : Élevage de Tilapias du Nil alimentés par des sous-produits agricoles.",
-        "2. Recyclage de l'eau : L'eau des poissons riche en azote est envoyée directement vers les cultures maraîchères.",
-        "3. Methaniseur Biogaz : 2 vaches produisent suffisamment de gaz ménager pour la cuisson quotidienne."
+        "1. Ingrédients : 500g graines de Neem + 10L eau + 50g savon noir.",
+        "2. Macération : 24 heures à l'ombre.",
+        "3. Application : Pulvérisation à 06h00 du matin."
       ]
     }
   ];
@@ -202,16 +174,7 @@ export default function Home() {
     setIsAiReplying(true);
 
     setTimeout(() => {
-      let aiResponse = "L'IA a analysé votre demande : Pour la zone sahélienne, consultez la fiche technique disponible dans le menu pour connaître le dosage exact de bio-pesticides ou les calculs de pompage solaire.";
-      const lower = query.toLowerCase();
-      if (lower.includes('semence') || lower.includes('semis')) {
-        aiResponse = "🌱 **Conseil Semis IA :** Attendez la première pluie utile (>20 mm). Privilégiez des graines certifiées à cycle court (70-90 jours).";
-      } else if (lower.includes('fiche') || lower.includes('pdf') || lower.includes('forage')) {
-        aiResponse = "📄 **Fiche Disponible :** Le guide complet 'Installation Puits & Pompage Photovoltaïque' est consultable et téléchargeable dans la section Fiches PDF !";
-      } else if (lower.includes('maladie') || lower.includes('neem')) {
-        aiResponse = "🐛 **Traitement Bio IA :** Utilisez 500g de Neem pilé dans 10L d'eau avec 50g de savon noir. Macération 24h à l'ombre.";
-      }
-
+      let aiResponse = "L'IA Agro-Intelligente recommande de privilégier l'irrigation goutte-à-goutte tôt le matin et les semences résilientes à cycle court.";
       setChatMessages((prev) => [...prev, { sender: 'ai', text: aiResponse }]);
       setIsAiReplying(false);
     }, 1000);
@@ -227,46 +190,26 @@ export default function Home() {
       setTimeout(() => {
         setAnalyzingPhoto(false);
         setScanResult({
-          disease: "Attaque de Chenille Légionnaire d'Automne",
-          confidence: "98.4%",
-          solutionBio: "Pulvériser l'extrait d'huile de Neem (Fiche N°2) dilué dans l'eau savonneuse tôt le matin."
+          disease: "Attaque de Chenille Légionnaire",
+          solutionBio: "Traitement bio au Neem à 5% dilué dans de l'eau savonneuse."
         });
       }, 2000);
     }
   };
 
-  // Téléchargement / Exportation Fiche PDF
-  const downloadPDF = (fiche) => {
-    const content = `=== SAHELCLIMATE-IA • FICHE TECHNIQUE ===\n\n` +
-                    `Titre: ${fiche.title}\n` +
-                    `Auteur/Source: ${fiche.author}\n` +
-                    `Catégorie: ${fiche.category}\n\n` +
-                    `RÉSUMÉ:\n${fiche.summary}\n\n` +
-                    `INSTRUCTIONS DÉTAILLÉES:\n` +
-                    fiche.details.join('\n') +
-                    `\n\n--- Document Officiel SahelClimate-IA BAMA 2026 ---`;
-
-    const element = document.createElement("a");
-    const file = new Blob([content], {type: 'text/plain;charset=utf-8'});
-    element.href = URL.createObjectURL(file);
-    element.download = `${fiche.id}_${fiche.category.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-  };
-
+  // ÉCRAN D'ACCUEIL AVEC LIBELLÉ AGRO-INTELLIGENCE
   if (!user) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
         <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 p-6 rounded-3xl shadow-2xl">
           <div className="text-center mb-6">
-            <span className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-semibold">
-              🌍 SahelClimate-IA • BAMA 2026
+            <span className="text-xs px-3.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-bold uppercase tracking-wider">
+              🌱 Agro-Intelligence & Climat
             </span>
             <h1 className="text-3xl font-extrabold text-white mt-3">
               SahelClimate<span className="text-emerald-400">-IA</span>
             </h1>
-            <p className="text-xs text-slate-400 mt-1">Plateforme Panafricaine d'Agro-Intelligence & Climat</p>
+            <p className="text-xs text-slate-400 mt-1">Plateforme Panafricaine d'Agro-Tech & SIG Sahélien</p>
           </div>
 
           {errorMsg && (
@@ -486,35 +429,23 @@ export default function Home() {
         </div>
       </header>
 
-      {/* CARTES ACCUEIL HUB */}
+      {/* HUB DES MODULES */}
       {activeTab === 'hub' && (
         <section className="space-y-6 animate-fade-in">
           <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 text-center">
-            <h2 className="text-2xl font-extrabold text-white mb-2">Centre d'Intelligence Agrotech & Fiches Techniques</h2>
+            <h2 className="text-2xl font-extrabold text-white mb-2">Plateforme Agro-Intelligente du Sahel</h2>
             <p className="text-xs text-slate-400 max-w-lg mx-auto">
-              Accédez aux fiches PDF détaillées, à l'assistant IA 100% fonctionnel, au scanner de maladies et au tracé de parcelles.
+              Sélectionnez un service pour accéder à l'assistant IA, aux fiches PDF, au diagnostic photo et au tracé satellite Esri.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div
-              onClick={() => setActiveTab('fiches')}
-              className="p-5 bg-slate-900 border-2 border-emerald-500/40 hover:border-emerald-400 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-2xl group"
-            >
-              <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">📄</div>
-              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Fiches Techniques & PDF</h3>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Consultez et téléchargez les guides complets : Pompage Solaire, Neem Bio, Reboisement et Aquaponie.
-              </p>
-              <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Voir les 4 fiches PDF →</span>
-            </div>
-
-            <div
               onClick={() => setActiveTab('chat')}
               className="p-5 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-xl group"
             >
               <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">💬</div>
-              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Assistant Chatbot IA 100%</h3>
+              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Assistant Chatbot IA</h3>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                 Posez vos questions agronomiques précises à l'intelligence artificielle en direct.
               </p>
@@ -532,74 +463,28 @@ export default function Home() {
               </p>
               <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Accéder au SIG →</span>
             </div>
-          </div>
-        </section>
-      )}
 
-      {/* SECTION FICHES TECHNIQUES COMPLÈTES & PDF */}
-      {activeTab === 'fiches' && (
-        <section className="space-y-4 animate-fade-in">
-          <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-2xl">
-            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-              <div>
-                <h2 className="text-xl font-bold text-emerald-400">📄 Banque de Fiches Techniques & Guides PDF</h2>
-                <p className="text-xs text-slate-400">Informations détaillées prêtes à être affichées ou téléchargées.</p>
-              </div>
-              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {fichesTechniques.map((fiche) => (
-                <div key={fiche.id} className="p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-3 shadow-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full font-mono border border-emerald-500/20">
-                      {fiche.category}
-                    </span>
-                    <span className="text-xs text-slate-500">{fiche.author}</span>
-                  </div>
-
-                  <h3 className="font-bold text-white text-sm">{fiche.title}</h3>
-                  <p className="text-xs text-slate-300 leading-relaxed">{fiche.summary}</p>
-
-                  <div className="flex gap-2 pt-2 border-t border-slate-800/80">
-                    <button
-                      onClick={() => setSelectedDoc(selectedDoc === fiche.id ? null : fiche.id)}
-                      className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-emerald-400 font-bold rounded-xl text-xs border border-emerald-500/30"
-                    >
-                      {selectedDoc === fiche.id ? "Masquer les détails" : "👁️ Afficher tous les détails"}
-                    </button>
-
-                    <button
-                      onClick={() => downloadPDF(fiche)}
-                      className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl text-xs shadow-md"
-                    >
-                      📥 Télécharger la Fiche (Fichier)
-                    </button>
-                  </div>
-
-                  {selectedDoc === fiche.id && (
-                    <div className="mt-3 p-4 bg-slate-900 rounded-xl border border-emerald-500/40 text-xs text-slate-200 space-y-2 animate-fade-in">
-                      <strong className="text-emerald-400 block mb-1">Instructions Étape par Étape :</strong>
-                      {fiche.details.map((item, dIdx) => (
-                        <div key={dIdx} className="p-2 bg-slate-950/80 rounded border border-slate-800">
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div
+              onClick={() => setActiveTab('fiches')}
+              className="p-5 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-xl group"
+            >
+              <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">📄</div>
+              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Fiches Techniques & PDF</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Consultez les guides de pompage solaire, bio-pesticides Neem et reboisement.
+              </p>
+              <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Voir les fiches PDF →</span>
             </div>
           </div>
         </section>
       )}
 
-      {/* ASSISTANT CHATBOT IA */}
+      {/* AUTRES SECTIONS */}
       {activeTab === 'chat' && (
         <section className="space-y-4">
           <div className="bg-slate-900/90 p-4 md:p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col h-[520px]">
             <div className="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">💬 Assistant Chatbot IA (100% Connecté)</h2>
+              <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">💬 Assistant Chatbot IA</h2>
               <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
@@ -610,12 +495,12 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-              {isAiReplying && <div className="text-xs text-emerald-400">L'IA recherche dans les fiches techniques...</div>}
+              {isAiReplying && <div className="text-xs text-emerald-400">L'IA prépare sa réponse...</div>}
             </div>
             <div className="flex gap-2 pt-3 border-t border-slate-800">
               <input
                 type="text"
-                placeholder="Posez votre question (Ex: Comment installer un forage solaire ?)"
+                placeholder="Posez votre question..."
                 value={inputQuestion}
                 onChange={(e) => setInputQuestion(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -627,7 +512,6 @@ export default function Home() {
         </section>
       )}
 
-      {/* SIG MAP */}
       {activeTab === 'sig' && (
         <section className="space-y-4">
           <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl">
@@ -636,6 +520,25 @@ export default function Home() {
               <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
             </div>
             <MapComponent />
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'fiches' && (
+        <section className="space-y-4">
+          <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-2xl">
+            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+              <h2 className="text-xl font-bold text-emerald-400">📄 Fiches Techniques & Guides PDF</h2>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {fichesTechniques.map((fiche) => (
+                <div key={fiche.id} className="p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                  <h3 className="font-bold text-white text-sm">{fiche.title}</h3>
+                  <p className="text-xs text-slate-300">{fiche.summary}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
