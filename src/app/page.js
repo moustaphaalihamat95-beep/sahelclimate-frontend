@@ -75,13 +75,22 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('sahel_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    try {
+      const savedUser = localStorage.getItem('sahel_user');
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+      }
+    } catch (e) {
+      console.error("Erreur de lecture locale", e);
     }
   }, []);
 
   const getFullPhone = () => `${countryCode}${phone.trim().replace(/^0+/, '')}`;
+
+  const switchAuthMode = (mode) => {
+    setErrorMsg('');
+    setAuthMode(mode);
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -180,28 +189,11 @@ export default function Home() {
     }, 1000);
   };
 
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedPhoto(URL.createObjectURL(file));
-      setAnalyzingPhoto(true);
-      setScanResult(null);
-
-      setTimeout(() => {
-        setAnalyzingPhoto(false);
-        setScanResult({
-          disease: "Attaque de Chenille Légionnaire",
-          solutionBio: "Traitement bio au Neem à 5% dilué dans de l'eau savonneuse."
-        });
-      }, 2000);
-    }
-  };
-
-  // ÉCRAN D'ACCUEIL AVEC LIBELLÉ AGRO-INTELLIGENCE
+  // ÉCRAN D'ACCUEIL SÉCURISÉ
   if (!user) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
-        <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 p-6 rounded-3xl shadow-2xl">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative z-10">
           <div className="text-center mb-6">
             <span className="text-xs px-3.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-bold uppercase tracking-wider">
               🌱 Agro-Intelligence & Climat
@@ -221,14 +213,16 @@ export default function Home() {
           {authMode === 'welcome' && (
             <div className="space-y-4">
               <button
-                onClick={() => { setAuthMode('login'); setErrorMsg(''); }}
-                className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-xl transition-all"
+                type="button"
+                onClick={() => switchAuthMode('login')}
+                className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-xl transition-all cursor-pointer relative z-20 active:scale-95"
               >
                 Se Connecter (Mon Compte)
               </button>
               <button
-                onClick={() => { setAuthMode('register'); setErrorMsg(''); }}
-                className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-2xl border border-emerald-500/30 transition-all"
+                type="button"
+                onClick={() => switchAuthMode('register')}
+                className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-2xl border border-emerald-500/30 transition-all cursor-pointer relative z-20 active:scale-95"
               >
                 Créer un Nouveau Compte
               </button>
@@ -273,14 +267,14 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-lg transition-all"
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-lg transition-all cursor-pointer"
               >
                 {loading ? "Connexion..." : "Se Connecter"}
               </button>
               <button
                 type="button"
-                onClick={() => setAuthMode('welcome')}
-                className="w-full text-center text-xs text-slate-400 hover:text-white mt-2"
+                onClick={() => switchAuthMode('welcome')}
+                className="w-full text-center text-xs text-slate-400 hover:text-white mt-2 cursor-pointer"
               >
                 ← Retour
               </button>
@@ -347,14 +341,14 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-lg transition-all"
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-lg transition-all cursor-pointer"
               >
                 {loading ? "Envoi du SMS..." : "S'inscrire (Recevoir le SMS)"}
               </button>
               <button
                 type="button"
-                onClick={() => setAuthMode('welcome')}
-                className="w-full text-center text-xs text-slate-400 hover:text-white mt-1"
+                onClick={() => switchAuthMode('welcome')}
+                className="w-full text-center text-xs text-slate-400 hover:text-white mt-1 cursor-pointer"
               >
                 ← Retour
               </button>
@@ -381,7 +375,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-lg transition-all"
+                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-lg transition-all cursor-pointer"
               >
                 {loading ? "Vérification..." : "Valider & Accéder"}
               </button>
@@ -415,21 +409,20 @@ export default function Home() {
           {activeTab !== 'hub' && (
             <button
               onClick={() => setActiveTab('hub')}
-              className="text-xs px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 rounded-xl border border-emerald-500/30 transition-all font-bold"
+              className="text-xs px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 rounded-xl border border-emerald-500/30 transition-all font-bold cursor-pointer"
             >
               🏠 Accueil
             </button>
           )}
           <button
             onClick={handleLogout}
-            className="text-xs px-3.5 py-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-300 rounded-xl border border-slate-700 transition-all font-semibold"
+            className="text-xs px-3.5 py-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-300 rounded-xl border border-slate-700 transition-all font-semibold cursor-pointer"
           >
             Déconnexion
           </button>
         </div>
       </header>
 
-      {/* HUB DES MODULES */}
       {activeTab === 'hub' && (
         <section className="space-y-6 animate-fade-in">
           <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 text-center">
@@ -479,13 +472,12 @@ export default function Home() {
         </section>
       )}
 
-      {/* AUTRES SECTIONS */}
       {activeTab === 'chat' && (
         <section className="space-y-4">
           <div className="bg-slate-900/90 p-4 md:p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col h-[520px]">
             <div className="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center">
               <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">💬 Assistant Chatbot IA</h2>
-              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white cursor-pointer">✕ Fermer</button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
               {chatMessages.map((msg, idx) => (
@@ -506,7 +498,7 @@ export default function Home() {
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 className="flex-1 p-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-white outline-none"
               />
-              <button onClick={() => handleSendMessage()} className="px-5 py-3 bg-emerald-500 text-slate-950 font-bold rounded-2xl text-xs">Envoyer</button>
+              <button onClick={() => handleSendMessage()} className="px-5 py-3 bg-emerald-500 text-slate-950 font-bold rounded-2xl text-xs cursor-pointer">Envoyer</button>
             </div>
           </div>
         </section>
@@ -517,7 +509,7 @@ export default function Home() {
           <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl">
             <div className="flex justify-between items-center mb-3">
               <h2 className="text-lg font-bold text-emerald-400">🛰️ Système SIG & Carte Satellite HD</h2>
-              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white cursor-pointer">✕ Fermer</button>
             </div>
             <MapComponent />
           </div>
@@ -529,7 +521,7 @@ export default function Home() {
           <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-2xl">
             <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
               <h2 className="text-xl font-bold text-emerald-400">📄 Fiches Techniques & Guides PDF</h2>
-              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white cursor-pointer">✕ Fermer</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {fichesTechniques.map((fiche) => (
