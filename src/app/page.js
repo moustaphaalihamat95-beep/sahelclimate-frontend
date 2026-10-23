@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 const MapComponent = dynamic(() => import('../components/MapComponent'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[350px] bg-slate-900 rounded-3xl flex flex-col items-center justify-center text-emerald-400 font-bold border border-emerald-500/30 p-4">
+    <div className="w-full h-[300px] bg-slate-900 rounded-3xl flex flex-col items-center justify-center text-emerald-400 font-bold border border-emerald-500/30 p-4">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-3"></div>
       Chargement du SIG & Imagerie Satellite HD...
     </div>
@@ -24,18 +24,17 @@ export default function Home() {
   
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeTab, setActiveTab] = useState('chat'); // Par défaut sur Chat IA
+  const [activeTab, setActiveTab] = useState('hub'); // 'hub', 'chat', 'scan', 'sig', 'formation', 'reboisement', 'circulaire'
+  
+  // Éléments du Scanner Photo
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [speakingLanguage, setSpeakingLanguage] = useState(null);
 
-  // ÉTAT POUR LE CHATBOT IA
+  // Chatbot IA
   const [chatMessages, setChatMessages] = useState([
-    {
-      sender: 'ai',
-      text: "Bonjour ! Je suis votre Assistant IA Agronomique SahelClimate-IA. Poser-moi vos questions sur le choix des semences, le compostage, les maladies de plantes, l'irrigation ou la lutte contre la sécheresse."
-    }
+    { sender: 'ai', text: "Bonjour ! Je suis l'IA SahelClimate-IA. Poser vos questions sur vos cultures, les semences ou la sécheresse." }
   ]);
   const [inputQuestion, setInputQuestion] = useState('');
   const [isAiReplying, setIsAiReplying] = useState(false);
@@ -46,7 +45,6 @@ export default function Home() {
     { name: "Mali 🇲🇱", code: "+223" },
     { name: "Burkina Faso 🇧🇫", code: "+226" },
     { name: "Sénégal 🇸🇳", code: "+221" },
-    { name: "Cameroun 🇨🇲", code: "+237" },
   ];
 
   useEffect(() => {
@@ -75,7 +73,7 @@ export default function Home() {
       setLoading(false);
       setAuthMode('verify');
     } catch (err) {
-      setErrorMsg(err.message || "Erreur d'envoi du SMS OTP");
+      setErrorMsg(err.message || "Erreur lors de l'inscription");
       setLoading(false);
     }
   };
@@ -100,7 +98,7 @@ export default function Home() {
       setUser(loggedUser);
       setLoading(false);
     } catch (err) {
-      setErrorMsg("Code OTP invalide ou expiré !");
+      setErrorMsg("Code OTP invalide !");
       setLoading(false);
     }
   };
@@ -129,7 +127,7 @@ export default function Home() {
       setUser(loggedUser);
       setLoading(false);
     } catch (err) {
-      setErrorMsg("Identifiants incorrects. Vérifiez le numéro et le mot de passe.");
+      setErrorMsg("Identifiants incorrects.");
       setLoading(false);
     }
   };
@@ -140,32 +138,23 @@ export default function Home() {
     setAuthMode('welcome');
   };
 
-  // ENVOI D'UN MESSAGE AU CHATBOT IA
   const handleSendMessage = (textToSend) => {
     const query = textToSend || inputQuestion;
     if (!query.trim()) return;
 
-    // Ajouter le message utilisateur
-    const userMsg = { sender: 'user', text: query };
-    setChatMessages((prev) => [...prev, userMsg]);
+    setChatMessages((prev) => [...prev, { sender: 'user', text: query }]);
     if (!textToSend) setInputQuestion('');
     setIsAiReplying(true);
 
-    // Simulation intelligente de la réponse de l'IA Agronomique
     setTimeout(() => {
-      let aiResponse = "Pour la zone sahélienne, il est recommandé d'adapter l'irrigation tôt le matin ou tard le soir, et privilégier des espèces résilientes comme le Sorgho, le Mil ou le Moringa.";
-
+      let aiResponse = "Pour la zone sahélienne, privilégiez des espèces résilientes à cycle court (Sorgho, Mil, Niébé) et adaptez l'irrigation tôt le matin pour limiter l'évaporation.";
       const lower = query.toLowerCase();
-      if (lower.includes('semence') || lower.includes('semis') || lower.includes('pluie')) {
-        aiResponse = "🌱 **Conseil Semis :** En zone de sécheresse, attendez le déclenchement de la première pluie utile (>20 mm). Utilisez des variétés à cycle court (70-90 jours) traitées aux bio-fongicides au Neem.";
-      } else if (lower.includes('eau') || lower.includes('irrigation') || lower.includes('forage') || lower.includes('solaire')) {
-        aiResponse = "☀️ **Conseil Irrigation & Solaire :** Le goutte-à-goutte associé à un pompage solaire réduit la consommation d'eau de 50%. En zone aride, complétez avec des demi-lunes pour retenir les eaux de ruissellement.";
-      } else if (lower.includes('chenille') || lower.includes('maladie') || lower.includes('insecte') || lower.includes('bio')) {
-        aiResponse = "🐛 **Protection Biologique :** Contre les chenilles légionnaires et ravageurs, préparez un extrait de feuilles de Neem (500g macérés dans 10L d'eau avec du savon noir). Pulvériser 2 fois par semaine.";
-      } else if (lower.includes('arbre') || lower.includes('désert') || lower.includes('reboisement') || lower.includes('gomme')) {
-        aiResponse = "🌴 **Reverdissement Sahélien :** Pour freiner l'avancée des d贅es et fixer les sols, replantez l'Acacia Senegal (Gomme arabique), le Balanites aegyptiaca (Dattier du désert) et l'Anacardier.";
-      } else if (lower.includes('compost') || lower.includes('engrais')) {
-        aiResponse = "🪱 **Compostage Rapide :** Alternez en couches de 20cm les déchets verts (paille, feuilles) et les fientes d'élevage (bovins, caprins). Arrosez légèrement tous les 3 jours. Compost prêt en 21 jours.";
+      if (lower.includes('semence') || lower.includes('semis')) {
+        aiResponse = "🌱 **Semis :** Attendez la première pluie utile (>20 mm). Utilisez des variétés locales à cycle court (70-90 jours).";
+      } else if (lower.includes('eau') || lower.includes('irrigation') || lower.includes('forage')) {
+        aiResponse = "☀️ **Irrigation & Pompage Solaire :** Associez le pompage solaire au goutte-à-goutte pour économiser 50% d'eau.";
+      } else if (lower.includes('maladie') || lower.includes('bio')) {
+        aiResponse = "🐛 **Pesticide Bio :** Préparez un extrait de feuilles de Neem (500g macérés 24h dans 10L d'eau avec du savon noir).";
       }
 
       setChatMessages((prev) => [...prev, { sender: 'ai', text: aiResponse }]);
@@ -183,11 +172,9 @@ export default function Home() {
       setTimeout(() => {
         setAnalyzingPhoto(false);
         setScanResult({
-          disease: "Attaque de Chenille Légionnaire d'Automne (Spodoptera frugiperda)",
+          disease: "Attaque de Chenille Légionnaire d'Automne",
           confidence: "98.4%",
-          severity: "Élevée",
-          solutionBio: "Pulvérisation d'un extrait d'huile de Neem bio à 5% dilué dans de l'eau savonneuse tôt le matin.",
-          prevention: "Association de cultures Mil/Sorgho avec du Niébé pour repousser les ravageurs."
+          solutionBio: "Pulvériser un extrait d'huile de Neem à 5% dilué dans l'eau savonneuse tôt le matin."
         });
       }, 2000);
     }
@@ -207,7 +194,7 @@ export default function Home() {
   if (!user) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
-        <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 p-6 rounded-3xl shadow-2xl backdrop-blur">
+        <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 p-6 rounded-3xl shadow-2xl">
           <div className="text-center mb-6">
             <span className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-semibold">
               🌍 SahelClimate-IA • BAMA 2026
@@ -215,7 +202,7 @@ export default function Home() {
             <h1 className="text-3xl font-extrabold text-white mt-3">
               SahelClimate<span className="text-emerald-400">-IA</span>
             </h1>
-            <p className="text-xs text-slate-400 mt-1">Plateforme Régionale d'Agro-Intelligence & SIG Sahélien</p>
+            <p className="text-xs text-slate-400 mt-1">Plateforme Panafricaine d'Agro-Intelligence & Climat</p>
           </div>
 
           {errorMsg && (
@@ -398,9 +385,11 @@ export default function Home() {
     );
   }
 
+  // TABLEAU DE BORD CONNECTÉ MODERNE
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-3 md:p-8 font-sans max-w-5xl mx-auto pb-28">
-      <header className="mb-6 bg-slate-900/80 backdrop-blur p-4 rounded-3xl border border-slate-800 shadow-2xl flex flex-wrap justify-between items-center gap-3">
+    <main className="min-h-screen bg-slate-950 text-slate-100 p-3 md:p-8 font-sans max-w-6xl mx-auto pb-28">
+      {/* EN-TÊTE ULTRA-MODERNE */}
+      <header className="mb-6 bg-slate-900/90 backdrop-blur p-4 rounded-3xl border border-slate-800 shadow-2xl flex flex-wrap justify-between items-center gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl">
             🌱
@@ -408,7 +397,7 @@ export default function Home() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-semibold">
-                🟢 {user.fullName} ({user.city})
+                🟢 Membre : {user.fullName} ({user.city})
               </span>
             </div>
             <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight">
@@ -417,171 +406,180 @@ export default function Home() {
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="text-xs px-3.5 py-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-300 rounded-xl border border-slate-700 transition-all font-semibold"
-        >
-          Déconnexion
-        </button>
+        <div className="flex items-center gap-2">
+          {activeTab !== 'hub' && (
+            <button
+              onClick={() => setActiveTab('hub')}
+              className="text-xs px-3.5 py-2 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 rounded-xl border border-emerald-500/30 transition-all font-bold"
+            >
+              🏠 Accueil
+            </button>
+          )}
+          <button
+            onClick={handleLogout}
+            className="text-xs px-3.5 py-2 bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-300 rounded-xl border border-slate-700 transition-all font-semibold"
+          >
+            Déconnexion
+          </button>
+        </div>
       </header>
 
-      {/* NAVIGATION ONGLET */}
-      <nav className="flex overflow-x-auto gap-2 mb-6 pb-2 no-scrollbar">
-        {[
-          { id: 'chat', label: '💬 Assistant Chat IA', icon: '🤖' },
-          { id: 'sig', label: '🛰️ Carte SIG & Tracé', icon: '📍' },
-          { id: 'scan', label: '📸 Scanner IA & Pathologies', icon: '🔍' },
-          { id: 'reboisement', label: '🌳 Arbres Anti-Désert', icon: '🌴' },
-          { id: 'circulaire', label: '☀️ Forage, Solaire & Pisciculture', icon: '⚡' },
-          { id: 'technique', label: '📚 Guides & Audios Vocaux', icon: '🎙️' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-3 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
-              activeTab === tab.id
-                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-lg shadow-emerald-500/20 scale-105'
-                : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      {/* PAGE D'ACCUEIL : HUB DE MODULES SOUS FORME DE CARTES CLAY/DESIGN */}
+      {activeTab === 'hub' && (
+        <section className="space-y-6 animate-fade-in">
+          <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 text-center">
+            <h2 className="text-2xl font-extrabold text-white mb-2">Bienvenue sur votre Plateforme Agrotech</h2>
+            <p className="text-xs text-slate-400 max-w-lg mx-auto">
+              Sélectionnez un service ci-dessous pour lancer l'assistant IA, diagnostiquer une maladie par photo, former vos équipes ou tracer votre parcelle satellite.
+            </p>
+          </div>
 
-      {/* ONGLET ASSISTANT CHAT IA INTERACTIF */}
-      {activeTab === 'chat' && (
-        <section className="space-y-4 animate-fade-in">
-          <div className="bg-slate-900/90 p-4 md:p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col h-[520px]">
-            <div className="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
-                  <span>🤖</span> Messagerie & Conseils Agronomiques IA
-                </h2>
-                <p className="text-xs text-slate-400">Posez vos questions librement à l'IA spécialisée en climat et agriculture du Sahel.</p>
-              </div>
-              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/30">En direct</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* CARTE 1 : CHATBOT IA */}
+            <div
+              onClick={() => setActiveTab('chat')}
+              className="p-5 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-xl group"
+            >
+              <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">💬</div>
+              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Assistant Chatbot IA</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Posez vos questions librement à l'IA agronomique pour obtenir des conseils en temps réel.
+              </p>
+              <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Ouvrir la discussion →</span>
             </div>
 
-            {/* ZONE D'AFFICHAGE DES MESSAGES */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2 no-scrollbar">
-              {chatMessages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] p-3.5 rounded-2xl text-xs md:text-sm leading-relaxed ${
-                      msg.sender === 'user'
-                        ? 'bg-emerald-500 text-slate-950 font-semibold rounded-br-none shadow-lg'
-                        : 'bg-slate-950 border border-slate-800 text-slate-100 rounded-bl-none shadow-md'
-                    }`}
-                  >
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-
-              {isAiReplying && (
-                <div className="flex justify-start">
-                  <div className="bg-slate-950 border border-slate-800 text-emerald-400 text-xs p-3 rounded-2xl rounded-bl-none flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-emerald-500"></div>
-                    L'IA recherche les conseils agronomiques...
-                  </div>
-                </div>
-              )}
+            {/* CARTE 2 : SCANNER PHOTO */}
+            <div
+              onClick={() => setActiveTab('scan')}
+              className="p-5 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-xl group"
+            >
+              <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">📸</div>
+              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Diagnostic Photo Plante</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Prenez une photo de feuille malade pour identifier la maladie et recevoir le traitement bio.
+              </p>
+              <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Scanner une plante →</span>
             </div>
 
-            {/* SUGGESTIONS RAPIDES */}
-            <div className="flex overflow-x-auto gap-2 py-3 border-t border-slate-800/80 no-scrollbar text-xs">
-              {[
-                "Quand semer le mil ?",
-                "Fabriquer un pesticide bio",
-                "Arbres contre le désert",
-                "Irrigation solaire",
-              ].map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSendMessage(q)}
-                  className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-emerald-400 rounded-xl border border-emerald-500/30 whitespace-nowrap"
-                >
-                  💡 {q}
-                </button>
-              ))}
+            {/* CARTE 3 : CARTE SIG & PARCELLE */}
+            <div
+              onClick={() => setActiveTab('sig')}
+              className="p-5 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-xl group"
+            >
+              <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">🛰️</div>
+              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Carte SIG & Tracé Parcelle</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Accédez à l'imagerie satellite Esri HD et tracez les contours de vos terres agricoles.
+              </p>
+              <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Voir la carte satellite →</span>
             </div>
 
-            {/* FORMULAIRE D'ENVOI */}
-            <div className="flex gap-2 pt-2">
-              <input
-                type="text"
-                placeholder="Posez votre question à l'IA (Ex: Comment faire du compost ?)"
-                value={inputQuestion}
-                onChange={(e) => setInputQuestion(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                className="flex-1 p-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs md:text-sm text-white outline-none focus:border-emerald-500"
-              />
-              <button
-                onClick={() => handleSendMessage()}
-                className="px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl text-xs md:text-sm transition-all shadow-lg"
-              >
-                Envoyer
-              </button>
+            {/* CARTE 4 : FORMATIONS & AUDIOS */}
+            <div
+              onClick={() => setActiveTab('formation')}
+              className="p-5 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-xl group"
+            >
+              <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">🎙️</div>
+              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Formations Vocales & Guides</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Écoutez les guides en audio en Arabe Tchadien, Peul, Haoussa et Wolof.
+              </p>
+              <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Écouter les formations →</span>
+            </div>
+
+            {/* CARTE 5 : REBOISEMENT */}
+            <div
+              onClick={() => setActiveTab('reboisement')}
+              className="p-5 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-xl group"
+            >
+              <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">🌴</div>
+              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Arbres Anti-Désertification</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Grande Muraille Verte : Anacardiers, Moringa, Balanites et Acacia Senegal.
+              </p>
+              <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Consulter le catalogue →</span>
+            </div>
+
+            {/* CARTE 6 : ÉCONOMIE CIRCULAIRE */}
+            <div
+              onClick={() => setActiveTab('circulaire')}
+              className="p-5 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-3xl cursor-pointer transition-all hover:scale-105 shadow-xl group"
+            >
+              <div className="text-3xl mb-3 p-3 bg-emerald-500/10 rounded-2xl w-fit border border-emerald-500/20">☀️</div>
+              <h3 className="font-bold text-white text-base group-hover:text-emerald-400">Forages, Solaire & Pisciculture</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Pompage solaire, élevage de Tilapias et méthanisation du fumier bovin.
+              </p>
+              <span className="inline-block mt-4 text-xs font-bold text-emerald-400">Découvrir les systèmes →</span>
             </div>
           </div>
         </section>
       )}
 
-      {/* AUTRES ONGLETS DE L'APPLICATION */}
+      {/* COMPOSANTS SPECIFIQUES */}
+      {activeTab === 'chat' && (
+        <section className="space-y-4">
+          <div className="bg-slate-900/90 p-4 md:p-6 rounded-3xl border border-slate-800 shadow-2xl flex flex-col h-[520px]">
+            <div className="border-b border-slate-800 pb-3 mb-4 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">💬 Assistant Chatbot IA</h2>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+              {chatMessages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs md:text-sm ${msg.sender === 'user' ? 'bg-emerald-500 text-slate-950 font-semibold' : 'bg-slate-950 border border-slate-800 text-slate-100'}`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isAiReplying && <div className="text-xs text-emerald-400">L'IA prépare sa réponse...</div>}
+            </div>
+            <div className="flex gap-2 pt-3 border-t border-slate-800">
+              <input
+                type="text"
+                placeholder="Posez votre question..."
+                value={inputQuestion}
+                onChange={(e) => setInputQuestion(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                className="flex-1 p-3 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-white outline-none"
+              />
+              <button onClick={() => handleSendMessage()} className="px-5 py-3 bg-emerald-500 text-slate-950 font-bold rounded-2xl text-xs">Envoyer</button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {activeTab === 'sig' && (
-        <section className="space-y-4 animate-fade-in">
+        <section className="space-y-4">
           <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl">
-            <h2 className="text-lg font-bold text-emerald-400 mb-1 flex items-center gap-2">
-              <span>🛰️</span> Système d'Information Géographique & Cartographie Esri
-            </h2>
-            <p className="text-xs text-slate-400 mb-4">
-              Tracez votre parcelle directement sur l'imagerie spatiale pour calculer la superficie et obtenir le diagnostic pédologique.
-            </p>
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-bold text-emerald-400">🛰️ Système SIG & Carte Satellite HD</h2>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+            </div>
             <MapComponent />
           </div>
         </section>
       )}
 
       {activeTab === 'scan' && (
-        <section className="space-y-4 animate-fade-in">
+        <section className="space-y-4">
           <div className="bg-slate-900/90 p-6 rounded-3xl border border-slate-800 shadow-xl text-center">
-            <h2 className="text-xl font-bold text-emerald-400 mb-2">📸 Diagnostic IA par Photo de Feuille / Plante</h2>
-            <p className="text-xs text-slate-400 max-w-md mx-auto mb-6">
-              Prenez une photo d'une feuille malade ou téléchargez une image pour une détection instantanée de la pathologie.
-            </p>
-
-            <label className="inline-flex flex-col items-center justify-center p-6 border-2 border-dashed border-emerald-500/40 hover:border-emerald-500 rounded-3xl cursor-pointer bg-slate-950/50 transition-all w-full max-w-md mx-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-emerald-400">📸 Diagnostic IA par Photo</h2>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+            </div>
+            <label className="inline-flex flex-col items-center justify-center p-6 border-2 border-dashed border-emerald-500/40 rounded-3xl cursor-pointer bg-slate-950/50 w-full max-w-md mx-auto">
               <span className="text-4xl mb-2">📷</span>
-              <span className="text-sm font-bold text-emerald-400">Prendre une photo ou Importer</span>
-              <span className="text-xs text-slate-500 mt-1">PNG, JPG jusqu'à 10MB</span>
+              <span className="text-sm font-bold text-emerald-400">Prendre une photo de feuille</span>
               <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
             </label>
-
             {selectedPhoto && (
-              <div className="mt-6 max-w-md mx-auto space-y-4">
-                <img src={selectedPhoto} alt="Plante scannée" className="w-full h-48 object-cover rounded-2xl border-2 border-emerald-500/30 shadow-lg" />
-                
-                {analyzingPhoto && (
-                  <div className="p-4 bg-slate-950 rounded-2xl border border-emerald-500/30 flex items-center justify-center gap-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
-                    <span className="text-xs font-bold text-emerald-400">Analyse IA des symptômes en cours...</span>
-                  </div>
-                )}
-
+              <div className="mt-4 max-w-md mx-auto space-y-3">
+                <img src={selectedPhoto} alt="Plante" className="w-full h-48 object-cover rounded-2xl border border-emerald-500/30" />
                 {scanResult && (
-                  <div className="p-5 bg-slate-950 rounded-2xl border-2 border-emerald-500/50 text-left space-y-3 shadow-2xl">
-                    <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                      <span className="text-xs bg-red-500/20 text-red-400 px-2.5 py-0.5 rounded-full font-bold">Alerte Pathologie</span>
-                      <span className="text-xs text-emerald-400 font-mono">Précision : {scanResult.confidence}</span>
-                    </div>
-                    <h3 className="font-bold text-white text-sm">{scanResult.disease}</h3>
-                    <div className="p-3 bg-emerald-950/40 rounded-xl border border-emerald-500/20 text-xs text-emerald-300">
-                      <strong>💡 Traitement Bio Recommandé :</strong> {scanResult.solutionBio}
-                    </div>
+                  <div className="p-4 bg-slate-950 rounded-2xl border border-emerald-500/40 text-left text-xs">
+                    <h3 className="font-bold text-emerald-400">{scanResult.disease}</h3>
+                    <p className="text-slate-300 mt-1">{scanResult.solutionBio}</p>
                   </div>
                 )}
               </div>
@@ -590,91 +588,65 @@ export default function Home() {
         </section>
       )}
 
-      {activeTab === 'reboisement' && (
-        <section className="space-y-4 animate-fade-in">
-          <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl">
-            <h2 className="text-lg font-bold text-emerald-400 mb-1">🌴 Arbres Résilients & Grande Muraille Verte</h2>
-            <p className="text-xs text-slate-400 mb-4">Sélection d'espèces à haute tolérance à la sécheresse pour fixer les d贅es et restaurer les sols arides.</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { name: "Acacia Senegal (Gomme Arabique)", desc: "Fixation exceptionnelle de l'azote, stoppe l'avancée du désert et génère un revenu économique fort.", img: "🌳" },
-                { name: "Balanites aegyptiaca (Dattier du Désert)", desc: "Racines profondes captant l'eau jusqu'à 20m. Production d'huile précieuse et fourrage bovin.", img: "🌴" },
-                { name: "Moringa Oleifera (Arbre Miracle)", desc: "Croissance ultra-rapide. Enrichit le sol en matière organique et feuilles hyper-nutritives.", img: "🌿" },
-                { name: "Anacardier (Noix de Cajou)", desc: "Excellente barrière brise-vent. Adapté aux sols limono-sableux du Sahel.", img: "🌱" },
-              ].map((tree, idx) => (
-                <div key={idx} className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex gap-3">
-                  <div className="text-3xl p-3 bg-slate-900 rounded-xl border border-slate-800 h-fit">{tree.img}</div>
-                  <div>
-                    <h3 className="font-bold text-emerald-400 text-sm">{tree.name}</h3>
-                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">{tree.desc}</p>
-                  </div>
+      {activeTab === 'formation' && (
+        <section className="space-y-4">
+          <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl space-y-3">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-bold text-emerald-400">🎙️ Formations Vocales en Langues Locales</h2>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+            </div>
+            {[
+              { title: "Guide 1 : Compostage Rapide en 21 jours", text: "Empiler en couches alternées résidus verts et déjections d'élevage. Arroser tous les 3 jours." },
+              { title: "Guide 2 : Insekticide Bio au Neem", text: "Piler 500g de graines de Neem, faire macérer dans 10 litres d'eau pendant 24h." },
+            ].map((g, idx) => (
+              <div key={idx} className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
+                <h3 className="font-bold text-white text-sm">{g.title}</h3>
+                <p className="text-xs text-slate-300">{g.text}</p>
+                <div className="flex gap-2">
+                  {["Arabe Tchadien", "Foulfouldé", "Haoussa"].map((lang, lIdx) => (
+                    <button key={lIdx} onClick={() => speakAdvice(g.text, lang)} className="px-3 py-1 bg-slate-900 text-emerald-400 text-xs rounded-xl border border-emerald-500/30">
+                      🔊 {lang}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'reboisement' && (
+        <section className="space-y-4">
+          <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-bold text-emerald-400">🌴 Arbres Anti-Désertification</h2>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800">
+                <strong className="text-emerald-400 block">Acacia Senegal (Gomme Arabique)</strong>
+                Stoppe la désertification et génère des revenus commerciaux.
+              </div>
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800">
+                <strong className="text-emerald-400 block">Balanites aegyptiaca (Dattier du Désert)</strong>
+                Captation de l'eau jusqu'à 20m de profondeur.
+              </div>
             </div>
           </div>
         </section>
       )}
 
       {activeTab === 'circulaire' && (
-        <section className="space-y-4 animate-fade-in">
-          <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl space-y-4">
-            <h2 className="text-lg font-bold text-emerald-400">☀️ Systèmes d'Agriculture Moderne & Économie Circulaire</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
-                <span className="text-2xl">⚡</span>
-                <h3 className="font-bold text-white text-sm">Forage & Pompage Solaire</h3>
-                <p className="text-xs text-slate-400">Pompes immergées alimentées par panneaux photovoltaïques sans coût de carburant. Débit de 10 m³/h.</p>
-              </div>
-
-              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
-                <span className="text-2xl">🐟</span>
-                <h3 className="font-bold text-white text-sm">Pisciculture & Aquaponie</h3>
-                <p className="text-xs text-slate-400">Élevage de Tilapias en bassins. L'eau enrichie en déjections de poissons fertilise directement les cultures.</p>
-              </div>
-
-              <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
-                <span className="text-2xl">🐄</span>
-                <h3 className="font-bold text-white text-sm">Bovins & Biogaz Circulaire</h3>
-                <p className="text-xs text-slate-400">Valorisation du fumier bovin en compost mûr et méthanisation pour la production de gaz domestique.</p>
-              </div>
+        <section className="space-y-4">
+          <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl">
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-lg font-bold text-emerald-400">☀️ Agriculture Circulaire & Solaire</h2>
+              <button onClick={() => setActiveTab('hub')} className="text-xs text-slate-400 hover:text-white">✕ Fermer</button>
             </div>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'technique' && (
-        <section className="space-y-4 animate-fade-in">
-          <div className="bg-slate-900/90 p-5 rounded-3xl border border-slate-800 shadow-xl space-y-4">
-            <h2 className="text-lg font-bold text-emerald-400">🎙️ Formations Vocales en Langues Locales</h2>
-            <p className="text-xs text-slate-400">Écoutez directement les instructions audio synthétisées pour une compréhension facile sur le terrain.</p>
-
-            <div className="space-y-3">
-              {[
-                { title: "Guide 1 : Compostage Rapide en 21 jours", text: "Empiler en couches alternées résidus verts et déjections d'élevage. Arroser tous les 3 jours." },
-                { title: "Guide 2 : Fabrication d'Insecticide Bio au Neem", text: "Piler 500g de graines de Neem, faire macérer dans 10 litres d'eau pendant 24h avec du savon noir." },
-                { title: "Guide 3 : Conservation des Sols par Demi-lunes", text: "Creuser des cuvettes semi-circulaires perpendiculaires à la pente pour freiner l'eau de pluie." },
-              ].map((guide, idx) => (
-                <div key={idx} className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-                  <h3 className="font-bold text-white text-sm">{guide.title}</h3>
-                  <p className="text-xs text-slate-300">{guide.text}</p>
-                  
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {["Arabe Tchadien", "Foulfouldé", "Haoussa", "Wolof"].map((lang, lIdx) => (
-                      <button
-                        key={lIdx}
-                        onClick={() => speakAdvice(guide.text, lang)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
-                          speakingLanguage === lang ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse' : 'bg-slate-900 text-emerald-400 border-emerald-500/30'
-                        }`}
-                      >
-                        🔊 {lang}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800">⚡ Pompage Solaire</div>
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800">🐟 Tilapias & Aquaponie</div>
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800">🐄 Fumier Bovin & Biogaz</div>
             </div>
           </div>
         </section>
