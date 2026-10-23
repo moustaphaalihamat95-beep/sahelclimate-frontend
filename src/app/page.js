@@ -27,17 +27,11 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('hub');
   const [selectedDoc, setSelectedDoc] = useState(null);
 
-  // Chatbot IA
   const [chatMessages, setChatMessages] = useState([
     { sender: 'ai', text: "Bonjour ! Je suis l'IA SahelClimate-IA. Posez vos questions sur la gestion des parcelles, l'irrigation ou les traitements bio." }
   ]);
   const [inputQuestion, setInputQuestion] = useState('');
   const [isAiReplying, setIsAiReplying] = useState(false);
-
-  // Scanner Photo
-  const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
-  const [scanResult, setScanResult] = useState(null);
 
   const countries = [
     { name: "Tchad 🇹🇩", code: "+235" },
@@ -59,38 +53,22 @@ export default function Home() {
         "2. Puissance : 4 Panneaux Photovoltaïques de 330W (1.32 kWp).",
         "3. Économie d'eau : 50% de réduction par goutte-à-goutte nocturne."
       ]
-    },
-    {
-      id: 'pdf2',
-      category: '🐛 Protection Biologique',
-      title: 'Guide d\'Extraction du Bio-Pesticide au Neem',
-      author: 'AgroTech Sahélienne',
-      summary: 'Formulation 100% biologique contre les chenilles et sautériaux.',
-      details: [
-        "1. Ingrédients : 500g graines de Neem + 10L eau + 50g savon noir.",
-        "2. Macération : 24 heures à l'ombre.",
-        "3. Application : Pulvérisation à 06h00 du matin."
-      ]
     }
   ];
 
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem('sahel_user');
-      if (savedUser) {
+    // Ne force pas la connexion automatique si l'utilisateur veut voir l'accueil
+    const savedUser = localStorage.getItem('sahel_user');
+    if (savedUser && savedUser !== 'null') {
+      try {
         setUser(JSON.parse(savedUser));
+      } catch(e) {
+        localStorage.removeItem('sahel_user');
       }
-    } catch (e) {
-      console.error("Erreur de lecture locale", e);
     }
   }, []);
 
   const getFullPhone = () => `${countryCode}${phone.trim().replace(/^0+/, '')}`;
-
-  const switchAuthMode = (mode) => {
-    setErrorMsg('');
-    setAuthMode(mode);
-  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -174,6 +152,13 @@ export default function Home() {
     setAuthMode('welcome');
   };
 
+  // Bouton mode test rapide si l'API SMS met du temps
+  const handleBypassLogin = () => {
+    const testUser = { fullName: "Moustapha Ali (Invité Test)", phone: "+23560646072", city: "Moussoro" };
+    localStorage.setItem('sahel_user', JSON.stringify(testUser));
+    setUser(testUser);
+  };
+
   const handleSendMessage = (textToSend) => {
     const query = textToSend || inputQuestion;
     if (!query.trim()) return;
@@ -189,19 +174,19 @@ export default function Home() {
     }, 1000);
   };
 
-  // ÉCRAN D'ACCUEIL SÉCURISÉ
+  // ÉCRAN DE CONNEXION / ACCUEIL
   if (!user) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 font-sans">
-        <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative z-10">
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
           <div className="text-center mb-6">
             <span className="text-xs px-3.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-bold uppercase tracking-wider">
-              🌱 Agro-Intelligence & Climat
+              🌍 BAMA Startup 2026
             </span>
             <h1 className="text-3xl font-extrabold text-white mt-3">
               SahelClimate<span className="text-emerald-400">-IA</span>
             </h1>
-            <p className="text-xs text-slate-400 mt-1">Plateforme Panafricaine d'Agro-Tech & SIG Sahélien</p>
+            <p className="text-xs text-slate-400 mt-1">L'IA & le SIG au service des agriculteurs du Sahel</p>
           </div>
 
           {errorMsg && (
@@ -214,17 +199,26 @@ export default function Home() {
             <div className="space-y-4">
               <button
                 type="button"
-                onClick={() => switchAuthMode('login')}
-                className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-xl transition-all cursor-pointer relative z-20 active:scale-95"
+                onClick={() => setAuthMode('login')}
+                className="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-xl transition-all cursor-pointer"
               >
                 Se Connecter (Mon Compte)
               </button>
               <button
                 type="button"
-                onClick={() => switchAuthMode('register')}
-                className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-2xl border border-emerald-500/30 transition-all cursor-pointer relative z-20 active:scale-95"
+                onClick={() => setAuthMode('register')}
+                className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-2xl border border-emerald-500/30 transition-all cursor-pointer"
               >
                 Créer un Nouveau Compte
+              </button>
+
+              {/* Bouton de secours direct pour le jury / test */}
+              <button
+                type="button"
+                onClick={handleBypassLogin}
+                className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 text-xs rounded-xl border border-slate-800 cursor-pointer"
+              >
+                🚀 Accès Rapide Direct (Mode Test Jury)
               </button>
             </div>
           )}
@@ -273,7 +267,7 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                onClick={() => switchAuthMode('welcome')}
+                onClick={() => setAuthMode('welcome')}
                 className="w-full text-center text-xs text-slate-400 hover:text-white mt-2 cursor-pointer"
               >
                 ← Retour
@@ -343,11 +337,11 @@ export default function Home() {
                 disabled={loading}
                 className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-lg transition-all cursor-pointer"
               >
-                {loading ? "Envoi du SMS..." : "S'inscrire (Recevoir le SMS)"}
+                {loading ? "Envoi..." : "S'inscrire"}
               </button>
               <button
                 type="button"
-                onClick={() => switchAuthMode('welcome')}
+                onClick={() => setAuthMode('welcome')}
                 className="w-full text-center text-xs text-slate-400 hover:text-white mt-1 cursor-pointer"
               >
                 ← Retour
@@ -365,19 +359,19 @@ export default function Home() {
                 <label className="text-xs font-bold text-slate-300 block mb-1">Code SMS (OTP)</label>
                 <input
                   type="text"
-                  placeholder="Code à 6 chiffres (Ex: 123456)"
+                  placeholder="Ex: 123456"
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value)}
-                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-center text-lg font-bold tracking-widest text-emerald-400 focus:border-emerald-500 outline-none"
+                  className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-center text-lg font-bold tracking-widest text-emerald-400 outline-none"
                   required
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-2xl shadow-lg transition-all cursor-pointer"
+                className="w-full py-3.5 bg-emerald-500 text-slate-950 font-bold rounded-2xl cursor-pointer"
               >
-                {loading ? "Vérification..." : "Valider & Accéder"}
+                Valider
               </button>
             </form>
           )}
@@ -395,7 +389,7 @@ export default function Home() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20 font-semibold">
+              <span className="text-xs px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/25 font-semibold">
                 🟢 Membre : {user.fullName} ({user.city})
               </span>
             </div>
@@ -426,7 +420,7 @@ export default function Home() {
       {activeTab === 'hub' && (
         <section className="space-y-6 animate-fade-in">
           <div className="bg-slate-900/80 p-6 rounded-3xl border border-slate-800 text-center">
-            <h2 className="text-2xl font-extrabold text-white mb-2">Plateforme Agro-Intelligente du Sahel</h2>
+            <h2 className="text-2xl font-extrabold text-white mb-2">🌍 BAMA Startup 2026 • SahelClimate-IA</h2>
             <p className="text-xs text-slate-400 max-w-lg mx-auto">
               Sélectionnez un service pour accéder à l'assistant IA, aux fiches PDF, au diagnostic photo et au tracé satellite Esri.
             </p>
